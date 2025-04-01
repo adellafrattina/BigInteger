@@ -22,6 +22,20 @@ project "test"
 		"bi-core"
 	}
 
+	-- Debug
+	filter "configurations:Debug*"
+		defines "BI_DEBUG"
+		runtime "Debug"
+		symbols "On"
+		optimize "Off"
+
+	-- Release
+	filter "configurations:Release*"
+		defines "BI_RELEASE"
+		runtime "Release"
+		symbols "Off"
+		optimize "On"
+
 	-- Static
 	filter "configurations:*Static"
 		defines "BI_STATIC"
