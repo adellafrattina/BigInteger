@@ -37,3 +37,4 @@ bin-int/**
 build/**
 !build/.empty
 **.lnk
+!vendor/windows/*.exe
