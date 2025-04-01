@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "BigInteger/Log.hpp"
+#include "Log.hpp"
 
 #define PRINT(fmt) \
 		va_list argptr; \

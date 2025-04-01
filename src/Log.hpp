@@ -1,10 +1,8 @@
 #pragma once
 
-#include "BigInteger/Base.hpp"
-
 namespace bi {
 
-	class BI_API Log {
+	class Log {
 
 	public:
 

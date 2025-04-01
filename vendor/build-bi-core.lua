@@ -9,11 +9,8 @@ project "bi-core"
 	files {
 
 		"../include/**.hpp",
-		"../include/BigInteger/**.hpp",
 		"../src/**.hpp",
-		"../src/**.cpp",
-		"../src/BigInteger/**.hpp",
-		"../src/BigInteger/**.cpp"
+		"../src/**.cpp"
 	}
 
 	includedirs {
