@@ -4,8 +4,27 @@
 
 int main() {
 
-	bi::Integer n1 = 100;
-	bi::Integer n2 = 200;
+	bi::Integer n1(0); // 18'446'744'073'709'551'615 18'000'000'000'009'551'615 18446744073709551615 4294967295
+	bi::Integer n2(0);
+	std::cout << "Insert first number: ";
+	std::cin >> n1;
 
-	std::cout << n1 + n2;
+	if (std::cin.fail()) {
+
+		std::cout << "Not a number\n";
+
+		return 1;
+	}
+
+	std::cout << "Insert second number: ";
+	std::cin >> n2;
+
+	if (std::cin.fail()) {
+
+		std::cout << "Not a number\n";
+
+		return 1;
+	}
+
+	std::cout << "Result: " << n1 + n2 << "\n";
 }
