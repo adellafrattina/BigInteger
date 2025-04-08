@@ -2,6 +2,7 @@
 
 #include <istream>
 #include <ostream>
+#include <string>
 
 #ifndef BI_STATIC
 	#ifdef _WIN32
@@ -26,14 +27,23 @@ namespace bi {
 
 	public:
 
-		Integer(long long n);
+		Integer(const std::string& str);
+		Integer(std::uint64_t n);
 		Integer(const Integer& other);
 		Integer(Integer&& other) noexcept;
 		Integer();
+		~Integer();
 
+		std::string ToString() const;
+		const void* Data();
+		std::size_t Size() const;
+
+		Integer& operator=(const std::string& str);
+		Integer& operator=(std::uint64_t n);
 		Integer& operator=(const Integer& other);
 
 		Integer operator+(const Integer& other);
+		Integer operator++();
 		Integer operator-(const Integer& other);
 		Integer operator*(const Integer& other);
 		Integer operator/(const Integer& other);
@@ -50,6 +60,13 @@ namespace bi {
 
 	private:
 
-		long long m_Data;
+		Integer(std::uint32_t* data, std::size_t size);
+
+		bool Init(const std::string& str);
+		void Init(const std::uint64_t& n);
+		void Clear();
+
+		std::uint32_t* m_Data;
+		std::size_t m_Size;
 	};
 }
