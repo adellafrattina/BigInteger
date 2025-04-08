@@ -1,7 +1,8 @@
 #include <memory>
 
-#define BI_PRINT_ACTIVE
 #include "Utils.hpp"
+
+#include "BigInteger.hpp"
 
 namespace Utils {
 
@@ -36,10 +37,10 @@ namespace Utils {
 
 	std::size_t Increment(std::uint32_t*& data, std::size_t size) {
 
-		std::uint8_t carry = 0;
+		std::uint8_t carry = 1;
 
 		std::size_t i = 0;
-		do {
+		while (i < size && carry != 0) {
 
 			carry = 0;
 			std::uint32_t value = data[i];
@@ -49,8 +50,7 @@ namespace Utils {
 				carry = 1;
 				i++;
 			}
-
-		} while (carry != 0 && i < size);
+		}
 
 		if (carry) {
 
@@ -72,7 +72,7 @@ namespace Utils {
 
 		else if (size_dest < size_to_sum) {
 
-			size = size_dest;
+			size = size_to_sum;
 			Resize(data_dest, size_dest, size);
 		}
 
@@ -84,25 +84,18 @@ namespace Utils {
 		std::uint8_t carry = 0;
 
 		std::size_t i = 0;
-		do {
+		while (i < size) {
 
 			std::uint32_t toSum = i >= size_to_sum ? 0 : data_to_sum[i];
 
 			std::uint32_t value = data_dest[i];
 			data_dest[i] = data_dest[i] + toSum;
-			if (data_dest[i] < value) {
+			bool overflow = data_dest[i] < value;
+			data_dest[i] += carry;
+			carry = overflow || data_dest[i] < value ? 1 : 0;
 
-				data_dest[i] += carry;
-				carry = 1;
-				i++;
-			}
-
-			else {
-
-				carry = 0;
-			}
-
-		} while (carry != 0 && i < size);
+			i++;
+		}
 
 		if (carry) {
 

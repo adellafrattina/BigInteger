@@ -1,15 +1,6 @@
 #include <cstdlib>
 #include <cstdint>
 
-// For debug purposes
-#undef PRINT
-#if !defined(BI_PRINT_ACTIVE)
-	#define PRINT(fmt, ...)
-#else
-	// To print debug information on standard output
-	#define PRINT(fmt, ...) printf(fmt, __VA_ARGS__); putchar('\n');
-#endif
-
 namespace Utils {
 
 	/// <summary>

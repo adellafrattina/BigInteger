@@ -4,10 +4,27 @@
 
 int main() {
 
-	bi::Integer n(18446744073709551615); // 18'446'744'073'709'551'615 18'000'000'000'009'551'615 18446744073709551615 4294967295
-	bi::Integer n2(18446744073709551615);
-	bi::Integer n3(18446744073709551615);
-	bi::Integer n4(0);
+	bi::Integer n1(0); // 18'446'744'073'709'551'615 18'000'000'000'009'551'615 18446744073709551615 4294967295
+	bi::Integer n2(0);
+	std::cout << "Insert first number: ";
+	std::cin >> n1;
 
-	std::cout << n + n2 << "\n";
+	if (std::cin.fail()) {
+
+		std::cout << "Not a number\n";
+
+		return 1;
+	}
+
+	std::cout << "Insert second number: ";
+	std::cin >> n2;
+
+	if (std::cin.fail()) {
+
+		std::cout << "Not a number\n";
+
+		return 1;
+	}
+
+	std::cout << "Result: " << n1 + n2 << "\n";
 }

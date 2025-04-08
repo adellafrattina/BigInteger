@@ -4,6 +4,9 @@
 #include <ostream>
 #include <string>
 
+#undef BI_PRINT_DEBUG_INFO
+#define BI_PRINT_DEBUG_INFO
+
 #ifndef BI_STATIC
 	#ifdef _WIN32
 		#ifdef BI_BUILD_DLL
@@ -19,6 +22,15 @@
 	#endif
 #else
 	#define BI_API
+#endif
+
+// For debug purposes
+#undef PRINT
+#if !defined(BI_PRINT_DEBUG_INFO)
+	#define PRINT(fmt, ...)
+#else
+	// To print debug information on standard output
+	#define PRINT(fmt, ...) printf(fmt, __VA_ARGS__); putchar('\n');
 #endif
 
 namespace bi {
@@ -37,12 +49,16 @@ namespace bi {
 		std::string ToString() const;
 		const void* Data();
 		std::size_t Size() const;
+		std::size_t SizeInBytes() const;
 
 		Integer& operator=(const std::string& str);
 		Integer& operator=(std::uint64_t n);
 		Integer& operator=(const Integer& other);
 
+		Integer operator+(std::uint64_t n);
+		Integer operator+=(std::uint64_t n);
 		Integer operator+(const Integer& other);
+		Integer operator+=(const Integer& other);
 		Integer operator++();
 		Integer operator-(const Integer& other);
 		Integer operator*(const Integer& other);

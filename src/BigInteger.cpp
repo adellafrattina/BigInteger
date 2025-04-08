@@ -1,6 +1,5 @@
 #include <cassert>
 
-#define BI_PRINT_ACTIVE
 #include "Utils.hpp"
 
 #include "BigInteger.hpp"
@@ -174,6 +173,11 @@ namespace bi {
 		return m_Size;
 	}
 
+	std::size_t Integer::SizeInBytes() const {
+
+		return m_Size * 4;
+	}
+
 	Integer& Integer::operator=(const std::string& str) {
 
 		Init(str);
@@ -197,12 +201,36 @@ namespace bi {
 		return *this;
 	}
 
+	Integer Integer::operator+(std::uint64_t n) {
+
+		Integer addend(n);
+		Integer new_int(*this);
+		new_int.m_Size = Add(new_int.m_Data, new_int.m_Size, addend.m_Data, addend.m_Size);
+
+		return new_int;
+	}
+
+	Integer Integer::operator+=(std::uint64_t n) {
+
+		Integer addend(n);
+		m_Size = Add(m_Data, m_Size, addend.m_Data, addend.m_Size);
+
+		return *this;
+	}
+
 	Integer Integer::operator+(const Integer& other) {
 
 		Integer new_int(*this);
 		new_int.m_Size = Add(new_int.m_Data, new_int.m_Size, other.m_Data, other.m_Size);
 
 		return new_int;
+	}
+
+	Integer Integer::operator+=(const Integer& other) {
+
+		m_Size = Add(m_Data, m_Size, other.m_Data, other.m_Size);
+
+		return *this;
 	}
 
 	Integer Integer::operator++() {
