@@ -1,6 +1,8 @@
 #include <cstdlib>
 #include <cstdint>
 
+#include "BigInteger.hpp"
+
 namespace Utils {
 
 	/// <summary>
@@ -16,7 +18,7 @@ namespace Utils {
 	/// <param name="data">The array to resize</param>
 	/// <param name="old_size">The old size</param>
 	/// <param name="new_size">The new size</param>
-	void Resize(std::uint32_t*& data, std::size_t old_size, std::size_t new_size);
+	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size);
 
 	// --- Mathematical operations ---
 
@@ -26,7 +28,7 @@ namespace Utils {
 	/// <param name="data">The desired big integer</param>
 	/// <param name="size">The big integer size</param>
 	/// <returns>The new big integer size if the increment causes overflow</returns>
-	std::size_t Increment(std::uint32_t*& data, std::size_t size);
+	std::size_t Increment(bi_int*& data, std::size_t size);
 
 	/// <summary>
 	/// Sums the first big integer with the second one. The result is stored in the first one. The first array could be resized if
@@ -37,7 +39,7 @@ namespace Utils {
 	/// <param name="data_to_sum">The second addend</param>
 	/// <param name="size_to_sum">The second added size</param>
 	/// <returns>The new big integer size if the increment causes overflow</returns>
-	std::size_t Add(std::uint32_t*& data_dest, std::size_t size_dest, std::uint32_t* data_to_sum, std::size_t size_to_sum);
+	std::size_t Add(bi_int*& data_dest, std::size_t size_dest, bi_int* data_to_sum, std::size_t size_to_sum);
 
 	// --- Bitwise operations ---
 

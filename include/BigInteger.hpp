@@ -33,6 +33,8 @@
 	#define PRINT(fmt, ...) printf(fmt, __VA_ARGS__); putchar('\n');
 #endif
 
+typedef std::uint32_t bi_int;
+
 namespace bi {
 
 	class BI_API Integer {
@@ -76,13 +78,11 @@ namespace bi {
 
 	private:
 
-		Integer(std::uint32_t* data, std::size_t size);
-
 		bool Init(const std::string& str);
 		void Init(const std::uint64_t& n);
 		void Clear();
 
-		std::uint32_t* m_Data;
+		bi_int* m_Data;
 		std::size_t m_Size;
 	};
 }

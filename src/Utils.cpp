@@ -2,8 +2,6 @@
 
 #include "Utils.hpp"
 
-#include "BigInteger.hpp"
-
 namespace Utils {
 
 	void PrintAsBinary(void* data, std::size_t size_in_bytes) {
@@ -18,24 +16,24 @@ namespace Utils {
 		}
 	}
 
-	void Resize(std::uint32_t*& data, std::size_t old_size, std::size_t new_size) {
+	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size) {
 
 		PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data, old_size, new_size);
 
-		std::uint32_t* tmp = data;
-		data = new std::uint32_t[new_size];
-		memset(data, 0, new_size * sizeof(std::uint32_t));
+		bi_int* tmp = data;
+		data = new bi_int[new_size];
+		memset(data, 0, new_size * sizeof(bi_int));
 
 		if (tmp != nullptr) {
 
-			memmove_s(data, new_size * sizeof(std::uint32_t), tmp, old_size * sizeof(std::uint32_t));
+			memmove_s(data, new_size * sizeof(bi_int), tmp, old_size * sizeof(bi_int));
 			delete[] tmp;
 		}
 	}
 
 	// --- Mathematical operations ---
 
-	std::size_t Increment(std::uint32_t*& data, std::size_t size) {
+	std::size_t Increment(bi_int*& data, std::size_t size) {
 
 		std::uint8_t carry = 1;
 
@@ -43,7 +41,7 @@ namespace Utils {
 		while (i < size && carry != 0) {
 
 			carry = 0;
-			std::uint32_t value = data[i];
+			bi_int value = data[i];
 			data[i] = data[i] + 1;
 			if (data[i] <= value) {
 
@@ -62,7 +60,7 @@ namespace Utils {
 		return size;
 	}
 
-	std::size_t Add(std::uint32_t*& data_dest, std::size_t size_dest, std::uint32_t* data_to_sum, std::size_t size_to_sum) {
+	std::size_t Add(bi_int*& data_dest, std::size_t size_dest, bi_int* data_to_sum, std::size_t size_to_sum) {
 
 		std::size_t size;
 		if (size_dest > size_to_sum) {
@@ -86,9 +84,9 @@ namespace Utils {
 		std::size_t i = 0;
 		while (i < size) {
 
-			std::uint32_t toSum = i >= size_to_sum ? 0 : data_to_sum[i];
+			bi_int toSum = i >= size_to_sum ? 0 : data_to_sum[i];
 
-			std::uint32_t value = data_dest[i];
+			bi_int value = data_dest[i];
 			data_dest[i] = data_dest[i] + toSum;
 			bool overflow = data_dest[i] < value;
 			data_dest[i] += carry;
