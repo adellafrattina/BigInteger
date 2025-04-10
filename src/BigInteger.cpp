@@ -63,7 +63,10 @@ namespace bi {
 
 		// Size in bytes = ceil(4*ceil(n/3)/8) + 1
 		// The last one is needed as an auxiliary buffer to store the first 8 bits in the number
-		const std::size_t bcdBufferSize = ((m_Size * sizeof(bi_int) * 8) / 3 + 1) / 2 + 1;
+		const std::size_t bcdBufferSize = ((m_Size * sizeof(bi_int) * 8) / 3 + 1) + 1;
+
+		// The bcd buffer start
+		const std::size_t bcdBufferStart = ((m_Size * sizeof(bi_int) * 8) / 3 + 1) / 2;
 
 		// The binary-coded decimal buffer
 		std::uint8_t* bcdBuffer = (std::uint8_t*)calloc(bcdBufferSize, sizeof(std::uint8_t));
@@ -79,7 +82,7 @@ namespace bi {
 				bcdBuffer[bcdBufferSize - 1] = buffer[m_Size * sizeof(bi_int) - 1 - shift / 8];
 			}
 
-			for (std::size_t i = 0; i < bcdBufferSize - 1; i++) {
+			for (std::size_t i = bcdBufferStart; i < bcdBufferSize - 1; i++) {
 
 				if (bcdBuffer[i] == 0)
 					continue;
@@ -107,49 +110,25 @@ namespace bi {
 			ShiftLeft1(bcdBuffer, bcdBufferSize);
 		}
 
+		// Shift the bits in the correct position to create the string buffer
+		for (std::size_t i = 0; i < bcdBufferSize - 1; i++) {
+
+			ShiftLeft(bcdBuffer, bcdBufferSize - 1 - i, 4);
+			bcdBuffer[bcdBufferSize - 2 - i] >>= 4;
+		}
+
 		// Remove the useless bits at the start
-
-		std::size_t byte_offset = 0;
-		std::uint8_t nibble_offset = LOW_BITS;
-		while (byte_offset < bcdBufferSize - 1) {
-
-			if ((bcdBuffer[byte_offset] & HIGH_BITS) != 0) {
-
-				nibble_offset = HIGH_BITS;
+		std::size_t offset = 0;
+		for (; offset < bcdBufferSize - 1; offset++)
+			if (bcdBuffer[offset] != 0)
 				break;
-			}
 
-			if ((bcdBuffer[byte_offset] & LOW_BITS) != 0) {
+		// Create the actual digit string
+		std::string data((char*)(bcdBuffer + offset), bcdBufferSize - 1 - offset);
+		for (std::size_t i = 0; i < data.size(); i++)
+			data[i] = data[i] + 48; // Convert from binary number to the ASCII character number
 
-				nibble_offset = LOW_BITS;
-				break;
-			}
-
-			byte_offset++;
-		}
-
-		// If the number is zero, read the last value
-		if (bcdBufferSize - 1 - byte_offset == 0)
-			byte_offset--;
-
-		std::string data;
-		data.resize((bcdBufferSize - 1 - byte_offset) * 2 - (nibble_offset & 0x01));
-
-		// Convert each nibble in the bcd buffer and insert it in the string 'data'
-		for (std::size_t i = 0; i < data.size(); i++) {
-
-			std::uint8_t digit = (bcdBuffer[byte_offset] & nibble_offset);
-
-			if (nibble_offset == LOW_BITS)
-				byte_offset++;
-
-			else
-				digit >>= 4;
-
-			data[i] = ((char)(digit + 48));
-			nibble_offset = ~nibble_offset;
-		}
-
+		// Free the bcd buffer
 		free(bcdBuffer);
 
 		return data;
