@@ -322,14 +322,14 @@ namespace bi {
 
 		long double i = 0.0;
 		std::size_t strIndex = 0;
-		std::uint8_t nibble_offset = 0x0F;
+		std::uint8_t nibble_offset = LOW_BITS;
 		std::uint8_t shiftAmount = 0;
 		while (strIndex < strLength) {
 
 			bcdBuffer[bcdBufferSize - 2 - (std::size_t)i] |= ((std::uint8_t)(str.at(strLength - 1 - strIndex + isNegative) - '0') << shiftAmount) & nibble_offset;
 			nibble_offset = ~nibble_offset;
 			shiftAmount = shiftAmount == 4 ? 0 : 4;
-			i = i + 0.5;
+			i += 0.5;
 			strIndex++;
 		}
 
@@ -385,8 +385,8 @@ namespace bi {
 
 		Clear();
 
-		m_Data = new bi_int[2];
-		m_Size = 2;
+		m_Data = new bi_int[sizeof(std::uint64_t) / sizeof(bi_int)];
+		m_Size = sizeof(std::uint64_t) / sizeof(bi_int);
 
 		const std::uint64_t* ptr = &n;
 		std::size_t pos = 56;
