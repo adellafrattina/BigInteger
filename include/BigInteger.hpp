@@ -36,6 +36,8 @@
 
 typedef std::uint8_t bi_int;
 #define BI_MAX_INT std::numeric_limits<bi_int>::max()
+#define BI_PLUS_SIGN 0
+#define BI_MINUS_SIGN BI_MAX_INT
 
 namespace bi {
 
@@ -43,7 +45,7 @@ namespace bi {
 
 	public:
 
-		Integer(std::uint64_t n);
+		Integer(std::int64_t n);
 		Integer(const std::string& str);
 		Integer(const Integer& other);
 		Integer(Integer&& other) noexcept;
@@ -55,7 +57,7 @@ namespace bi {
 		std::size_t Size() const;
 		std::size_t SizeInBytes() const;
 
-		Integer& operator=(std::uint64_t n);
+		Integer& operator=(std::int64_t n);
 		Integer& operator=(const std::string& str);
 		Integer& operator=(const Integer& other);
 
@@ -63,8 +65,8 @@ namespace bi {
 
 		Integer& operator+();
 
-		Integer operator+(std::uint64_t n);
-		Integer& operator+=(std::uint64_t n);
+		Integer operator+(std::int64_t n);
+		Integer& operator+=(std::int64_t n);
 
 		Integer operator+(const std::string& str);
 		Integer& operator+=(const std::string& str);
@@ -79,8 +81,8 @@ namespace bi {
 
 		Integer operator-();
 
-		Integer operator-(std::uint64_t n);
-		Integer& operator-=(std::uint64_t n);
+		Integer operator-(std::int64_t n);
+		Integer& operator-=(std::int64_t n);
 
 		Integer operator-(const std::string& str);
 		Integer& operator-=(const std::string& str);
@@ -115,8 +117,8 @@ namespace bi {
 
 	private:
 
+		void Init(std::int64_t n);
 		bool Init(const std::string& str);
-		void Init(const std::uint64_t& n);
 		void Clear();
 
 		mutable bi_int* m_Data;
