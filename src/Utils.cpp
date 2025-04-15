@@ -2,8 +2,6 @@
 
 #include "Utils.hpp"
 
-#include "BigInteger.hpp"
-
 namespace Utils {
 
 	void PrintAsBinary(void* data, std::size_t size_in_bytes) {
@@ -16,34 +14,56 @@ namespace Utils {
 			for (mask = 1 << (CHAR_BIT - 1); mask; mask >>= 1)
 				putchar(mask & buffer[size_in_bytes - 1 - i] ? '1' : '0');
 		}
+
+		putchar('\n');
 	}
 
-	void Resize(std::uint32_t*& data, std::size_t old_size, std::size_t new_size) {
+	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size) {
 
 		PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data, old_size, new_size);
 
-		std::uint32_t* tmp = data;
-		data = new std::uint32_t[new_size];
-		memset(data, 0, new_size * sizeof(std::uint32_t));
+		bi_int* tmp = data;
+		data = new bi_int[new_size];
+		memset(data, 0, new_size * sizeof(bi_int)); // For some reason, this must not be touched
 
 		if (tmp != nullptr) {
 
-			memmove_s(data, new_size * sizeof(std::uint32_t), tmp, old_size * sizeof(std::uint32_t));
+			// Copy the old data
+			memmove_s(data, new_size * sizeof(bi_int), tmp, old_size * sizeof(bi_int));
+
+			// Fill the rest of the new buffer data with the old data sign
+			for (std::size_t i = old_size; i < new_size; i++)
+				data[i] = tmp[old_size - 1];
+
 			delete[] tmp;
 		}
 	}
 
+	bool IsNegative(const bi_int* const data, std::size_t size) {
+
+		return data != nullptr && data[size - 1] == BI_MAX_INT;
+	}
+
 	// --- Mathematical operations ---
 
-	std::size_t Increment(std::uint32_t*& data, std::size_t size) {
+	std::size_t Negate(bi_int*& data, std::size_t size) {
+
+		Not(data, size * sizeof(bi_int));
+		size = Increment(data, size);
+
+		return size;
+	}
+
+	std::size_t Increment(bi_int*& data, std::size_t size) {
+
+		bool sameSign = data[size - 1] == 0;
 
 		std::uint8_t carry = 1;
-
 		std::size_t i = 0;
 		while (i < size && carry != 0) {
 
 			carry = 0;
-			std::uint32_t value = data[i];
+			bi_int value = data[i];
 			data[i] = data[i] + 1;
 			if (data[i] <= value) {
 
@@ -52,17 +72,55 @@ namespace Utils {
 			}
 		}
 
-		if (carry) {
+		if (sameSign) {
 
-			Resize(data, size, size + 1);
-			data[size] = 1;
-			size++;
+			if (data[size - 1] != 0) {
+
+				Resize(data, size, size + 1);
+				data[size] = 0;
+				size++;
+			}
 		}
 
 		return size;
 	}
 
-	std::size_t Add(std::uint32_t*& data_dest, std::size_t size_dest, std::uint32_t* data_to_sum, std::size_t size_to_sum) {
+	std::size_t Decrement(bi_int*& data, std::size_t size) {
+
+		bool sameSign = data[size - 1] == BI_MAX_INT;
+
+		std::uint8_t carry = 1;
+		std::size_t i = 0;
+		while (i < size && carry != 0) {
+
+			carry = 0;
+			bi_int value = data[i];
+			data[i] = data[i] - 1;
+			if (data[i] >= value) {
+
+				carry = 1;
+				i++;
+			}
+		}
+
+		if (sameSign) {
+
+			if (data[size - 1] != BI_MAX_INT) {
+
+				Resize(data, size, size + 1);
+				data[size] = BI_MAX_INT;
+				size++;
+			}
+		}
+
+		return size;
+	}
+
+	std::size_t Add(bi_int*& data_dest, std::size_t size_dest, const bi_int* const data_to_sum, std::size_t size_to_sum) {
+
+		const bool sameSign = data_dest[size_dest - 1] == data_to_sum[size_to_sum - 1];
+		const bi_int sign1 = data_dest[size_dest - 1];
+		const bi_int sign2 = data_to_sum[size_to_sum - 1];
 
 		std::size_t size;
 		if (size_dest > size_to_sum) {
@@ -86,22 +144,25 @@ namespace Utils {
 		std::size_t i = 0;
 		while (i < size) {
 
-			std::uint32_t toSum = i >= size_to_sum ? 0 : data_to_sum[i];
+			bi_int toSum = i >= size_to_sum ? sign2 : data_to_sum[i];
 
-			std::uint32_t value = data_dest[i];
+			bi_int value = data_dest[i];
 			data_dest[i] = data_dest[i] + toSum;
 			bool overflow = data_dest[i] < value;
+			value = data_dest[i];
 			data_dest[i] += carry;
 			carry = overflow || data_dest[i] < value ? 1 : 0;
 
 			i++;
 		}
 
-		if (carry) {
+		if (sameSign) {
 
-			Resize(data_dest, size, size + 1);
-			data_dest[size] = 1;
-			size++;
+			if (data_dest[size - 1] != sign1) {
+
+				Resize(data_dest, size, size + 1);
+				size++;
+			}
 		}
 
 		return size;
