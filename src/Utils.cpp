@@ -56,7 +56,7 @@ namespace Utils {
 
 	std::size_t Increment(bi_int*& data, std::size_t size) {
 
-		bool sameSign = data[size - 1] == 0;
+		bool sameSign = data[size - 1] == BI_PLUS_SIGN;
 
 		std::uint8_t carry = 1;
 		std::size_t i = 0;
@@ -87,7 +87,7 @@ namespace Utils {
 
 	std::size_t Decrement(bi_int*& data, std::size_t size) {
 
-		bool sameSign = data[size - 1] == BI_MAX_INT;
+		bool sameSign = data[size - 1] == BI_MINUS_SIGN;
 
 		std::uint8_t carry = 1;
 		std::size_t i = 0;
@@ -105,10 +105,10 @@ namespace Utils {
 
 		if (sameSign) {
 
-			if (data[size - 1] != BI_MAX_INT) {
+			if (data[size - 1] != BI_MINUS_SIGN) {
 
 				Resize(data, size, size + 1);
-				data[size] = BI_MAX_INT;
+				data[size] = BI_MINUS_SIGN;
 				size++;
 			}
 		}
