@@ -13,12 +13,14 @@ namespace Utils {
 	void PrintAsBinary(void* data, std::size_t size_in_bytes);
 
 	/// <summary>
-	/// Resizes the given array of integers. Can be used to create or resize an array while keeping its original content (as long as the new size is greater or equal to the old one)
+	/// Resizes the given array of integers. Can be used to create or resize an array while keeping its original content (as long as the new size is greater or equal to the old one).
+	/// To make it work with 2's complement, this function can automatically extend the sign
 	/// </summary>
 	/// <param name="data">The array to resize</param>
 	/// <param name="old_size">The old size</param>
 	/// <param name="new_size">The new size</param>
-	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size);
+	/// <param name="ext_sign">If the number should be sign extended (true by default)</param>
+	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size, bool ext_sign = true);
 
 	/// <summary>
 	/// Checks whether the specified number is negative or not

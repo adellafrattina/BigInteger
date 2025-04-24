@@ -18,7 +18,7 @@ namespace Utils {
 		putchar('\n');
 	}
 
-	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size) {
+	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size, bool ext_sign) {
 
 		PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data, old_size, new_size);
 
@@ -32,8 +32,9 @@ namespace Utils {
 			memmove_s(data, new_size * sizeof(bi_int), tmp, old_size * sizeof(bi_int));
 
 			// Fill the rest of the new buffer data with the old data sign
-			for (std::size_t i = old_size; i < new_size; i++)
-				data[i] = tmp[old_size - 1];
+			if (ext_sign)
+				for (std::size_t i = old_size; i < new_size; i++)
+					data[i] = tmp[old_size - 1];
 
 			delete[] tmp;
 		}
@@ -118,10 +119,16 @@ namespace Utils {
 
 	std::size_t Add(bi_int*& data_dest, std::size_t size_dest, const bi_int* const data_to_sum, std::size_t size_to_sum) {
 
+		// Check if the numbers have the same sign
 		const bool sameSign = data_dest[size_dest - 1] == data_to_sum[size_to_sum - 1];
+
+		// First addend sign
 		const bi_int sign1 = data_dest[size_dest - 1];
+
+		// Second addend sign
 		const bi_int sign2 = data_to_sum[size_to_sum - 1];
 
+		// Check which number is the biggest
 		std::size_t size;
 		if (size_dest > size_to_sum) {
 
@@ -139,9 +146,10 @@ namespace Utils {
 			size = size_dest;
 		}
 
-		std::uint8_t carry = 0;
+		// Sum the numbers byte by byte (TODO: group in QWORDs and add multithreading)
 
 		std::size_t i = 0;
+		std::uint8_t carry = 0;
 		while (i < size) {
 
 			bi_int toSum = i >= size_to_sum ? sign2 : data_to_sum[i];
@@ -149,6 +157,7 @@ namespace Utils {
 			bi_int value = data_dest[i];
 			data_dest[i] = data_dest[i] + toSum;
 			bool overflow = data_dest[i] < value;
+
 			value = data_dest[i];
 			data_dest[i] += carry;
 			carry = overflow || data_dest[i] < value ? 1 : 0;
@@ -156,11 +165,18 @@ namespace Utils {
 			i++;
 		}
 
-		if (sameSign) {
+		// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
+		// The logic behind this code is the following:
 
+		// If the 2 big integers have the same sign at the beginning...
+		if (carry && sameSign) {
+
+			// ... and the sum result has a different sign from the previous one...
 			if (data_dest[size - 1] != sign1) {
 
-				Resize(data_dest, size, size + 1);
+				// ... then resize the destination buffer and add the sign at the end
+				Resize(data_dest, size, size + 1, false);
+				data_dest[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
 				size++;
 			}
 		}
