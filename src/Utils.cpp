@@ -2,6 +2,27 @@
 
 #include "Utils.hpp"
 
+/// <summary>
+/// Sums two qwords and stores the value in the first parameter. It returns whether there was overflow or not
+/// </summary>
+/// <param name="first">The first addend</param>
+/// <param name="second">The second addend</param>
+/// <param name="carry">The previous sum's carry</param>
+/// <returns>True if there was overflow, false if not</returns>
+static inline bool SumOverflow(std::uint64_t& first, const std::uint64_t second, const std::uint64_t carry = 0) {
+
+	// Sum
+	std::uint64_t value = first;
+	first += second;
+	const bool overflow = first < value;
+
+	// Carry
+	value = first;
+	first += carry;
+
+	return overflow || first < value;
+}
+
 namespace Utils {
 
 	void PrintAsBinary(void* data, std::size_t size_in_bytes) {
@@ -38,6 +59,17 @@ namespace Utils {
 
 			delete[] tmp;
 		}
+	}
+
+	std::uint64_t BytesToQWORD(const void* data, std::size_t size_in_bytes) {
+
+		const std::uint8_t* buffer = (std::uint8_t*)data;
+		std::uint64_t qword = 0;
+
+		for (std::size_t i = 0; i < size_in_bytes - 1; i++)
+			qword |= static_cast<std::uint64_t>(buffer[i] << (i * 8));
+
+		return qword;
 	}
 
 	bool IsNegative(const bi_int* const data, std::size_t size) {
@@ -129,34 +161,56 @@ namespace Utils {
 		const bi_int sign2 = data_to_sum[size_to_sum - 1];
 
 		// Check which number is the biggest
-		std::size_t size;
+		std::size_t sizeInBytes;
 		if (size_dest > size_to_sum) {
 
-			size = size_dest;
+			sizeInBytes = size_dest;
 		}
 
 		else if (size_dest < size_to_sum) {
 
-			size = size_to_sum;
-			Resize(data_dest, size_dest, size);
+			sizeInBytes = size_to_sum;
+			Resize(data_dest, size_dest, sizeInBytes);
 		}
 
 		else {
 
-			size = size_dest;
+			sizeInBytes = size_dest;
 		}
 
-		// Sum the numbers byte by byte (TODO: group in QWORDs and add multithreading)
+		// Sum the numbers qword by qword (TODO: add multithreading)
+
+		// Source and destination buffer
+		std::uint64_t* buffer1 = (std::uint64_t*)data_dest;
+		const std::size_t size1 = sizeInBytes / sizeof(std::uint64_t);
+
+		// The qword in the case the second addend is smaller than 8 bytes
+		const std::uint64_t qword = size_to_sum / sizeof(std::uint64_t) ? 0 : BytesToQWORD(data_to_sum, size_to_sum * sizeof(bi_int));
+
+		// Source buffer for the second addend
+		const std::uint64_t* const buffer2 = size_to_sum / sizeof(std::uint64_t) ? (const std::uint64_t* const)data_to_sum : &qword;
+		const std::size_t size2 = size_to_sum / sizeof(std::uint64_t) ? size_to_sum / sizeof(std::uint64_t) : 1;
+
+		// The second addend sign as 64 bit
+		const std::uint64_t sign = sign2 ? std::numeric_limits<std::uint64_t>::max() : 0;
 
 		std::size_t i = 0;
 		std::uint8_t carry = 0;
-		while (i < size) {
+		while (i < size1) {
+
+			carry = SumOverflow(buffer1[i], i >= size2 ? sign : buffer2[i], carry);
+			i++;
+		}
+
+		// Sum the remaining bytes
+		i = i * sizeof(std::uint64_t);
+		while (i < sizeInBytes) {
 
 			bi_int toSum = i >= size_to_sum ? sign2 : data_to_sum[i];
 
 			bi_int value = data_dest[i];
-			data_dest[i] = data_dest[i] + toSum;
-			bool overflow = data_dest[i] < value;
+			data_dest[i] += toSum;
+			const bool overflow = data_dest[i] < value;
 
 			value = data_dest[i];
 			data_dest[i] += carry;
@@ -172,16 +226,16 @@ namespace Utils {
 		if (carry && sameSign) {
 
 			// ... and the sum result has a different sign from the previous one...
-			if (data_dest[size - 1] != sign1) {
+			if (data_dest[sizeInBytes - 1] != sign1) {
 
 				// ... then resize the destination buffer and add the sign at the end
-				Resize(data_dest, size, size + 1, false);
-				data_dest[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
-				size++;
+				Resize(data_dest, sizeInBytes, sizeInBytes + 1, false);
+				data_dest[sizeInBytes] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+				sizeInBytes++;
 			}
 		}
 
-		return size;
+		return sizeInBytes;
 	}
 
 	// --- Bitwise operations ---

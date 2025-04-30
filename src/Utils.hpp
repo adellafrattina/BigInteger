@@ -23,6 +23,14 @@ namespace Utils {
 	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size, bool ext_sign = true);
 
 	/// <summary>
+	/// Converts the first 8 bytes of the given array into a qword (64 bit word)
+	/// </summary>
+	/// <param name="data">The desired array</param>
+	/// <param name="size_in_bytes">The desired array size in bytes</param>
+	/// <returns>The qword</returns>
+	std::uint64_t BytesToQWORD(const void* data, std::size_t size_in_bytes);
+
+	/// <summary>
 	/// Checks whether the specified number is negative or not
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
