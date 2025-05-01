@@ -11,7 +11,7 @@ constexpr std::uint8_t LOW_BITS = 0x0F;
 
 namespace bi {
 
-	Integer::Integer(std::uint64_t n)
+	Integer::Integer(std::int64_t n)
 		: m_Data(nullptr), m_Size(0)
 
 	{
@@ -174,7 +174,7 @@ namespace bi {
 		return m_Size * sizeof(bi_int);
 	}
 
-	Integer& Integer::operator=(std::uint64_t n) {
+	Integer& Integer::operator=(std::int64_t n) {
 
 		Init(n);
 
@@ -204,7 +204,7 @@ namespace bi {
 		return *this;
 	}
 
-	Integer Integer::operator+(std::uint64_t n) {
+	Integer Integer::operator+(std::int64_t n) {
 
 		Integer addend(n);
 		Integer new_int(*this);
@@ -213,7 +213,7 @@ namespace bi {
 		return new_int;
 	}
 
-	Integer& Integer::operator+=(std::uint64_t n) {
+	Integer& Integer::operator+=(std::int64_t n) {
 
 		Integer addend(n);
 		m_Size = Add(m_Data, m_Size, addend.m_Data, addend.m_Size);
@@ -278,7 +278,7 @@ namespace bi {
 		return new_int;
 	}
 
-	Integer Integer::operator-(std::uint64_t n) {
+	Integer Integer::operator-(std::int64_t n) {
 
 		Integer subtracting(n);
 		subtracting.m_Size = Negate(subtracting.m_Data, subtracting.m_Size);
@@ -289,7 +289,7 @@ namespace bi {
 		return new_int;
 	}
 
-	Integer& Integer::operator-=(std::uint64_t n) {
+	Integer& Integer::operator-=(std::int64_t n) {
 
 		Integer subtracting(n);
 		subtracting.m_Size = Negate(subtracting.m_Data, subtracting.m_Size);
@@ -432,6 +432,24 @@ namespace bi {
 		return os << n.ToString();
 	}
 
+	void Integer::Init(std::int64_t n) {
+
+		Clear();
+
+		m_Size = sizeof(std::int64_t) / sizeof(bi_int) + 1;
+		m_Data = new bi_int[m_Size];
+		m_Data[m_Size - 1] = n < 0 ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+
+		const std::int64_t* ptr = &n;
+		std::size_t pos = 56;
+		std::uint8_t* buffer = (std::uint8_t*)m_Data;
+		for (std::size_t i = 0; i < (m_Size - 1) * sizeof(bi_int); i++) {
+
+			buffer[(m_Size - 1) * sizeof(bi_int) - 1 - i] = static_cast<std::uint8_t>((n >> pos) & 0xFF);
+			pos -= 8;
+		}
+	}
+
 	bool Integer::Init(const std::string& str) {
 
 		if (str.empty())
@@ -529,23 +547,6 @@ namespace bi {
 		}
 
 		return true;
-	}
-
-	void Integer::Init(const std::uint64_t& n) {
-
-		Clear();
-
-		m_Data = new bi_int[sizeof(std::uint64_t) / sizeof(bi_int)];
-		m_Size = sizeof(std::uint64_t) / sizeof(bi_int);
-
-		const std::uint64_t* ptr = &n;
-		std::size_t pos = 56;
-		std::uint8_t* buffer = (std::uint8_t*)m_Data;
-		for (std::size_t i = 0; i < m_Size * sizeof(bi_int); i++) {
-
-			buffer[m_Size * sizeof(bi_int) - 1 - i] = static_cast<std::uint8_t>((n >> pos) & 0xFF);
-			pos -= 8;
-		}
 	}
 
 	void Integer::Clear() {
