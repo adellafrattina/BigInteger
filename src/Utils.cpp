@@ -2,26 +2,8 @@
 
 #include "Utils.hpp"
 
-/// <summary>
-/// Sums two qwords and stores the value in the first parameter. It returns whether there was overflow or not
-/// </summary>
-/// <param name="first">The first addend</param>
-/// <param name="second">The second addend</param>
-/// <param name="carry">The previous sum's carry</param>
-/// <returns>True if there was overflow, false if not</returns>
-static inline bool SumOverflow(std::uint64_t& first, const std::uint64_t second, const std::uint64_t carry = 0) {
-
-	// Sum
-	std::uint64_t value = first;
-	first += second;
-	const bool overflow = first < value;
-
-	// Carry
-	value = first;
-	first += carry;
-
-	return overflow || first < value;
-}
+#undef BI_SIGN
+#define BI_SIGN(x) x.Buffer[x.Size - 1]
 
 namespace Utils {
 
@@ -149,60 +131,43 @@ namespace Utils {
 	void Add(bi_int& first, const bi_int& second) {
 
 		// Check if the numbers have the same sign
-		const bool sameSign = first.Buffer[first.Size - 1] == second.Buffer[second.Size - 1];
+		const bool sameSign = BI_SIGN(first) == BI_SIGN(second);
 
 		// First addend sign
-		const bi_type sign1 = first.Buffer[first.Size - 1];
+		const bi_type sign1 = BI_SIGN(first);
 
 		// Second addend sign
-		const bi_type sign2 = second.Buffer[second.Size - 1];
+		const bi_type sign2 = BI_SIGN(second);
 
 		// Check which number is the biggest
-		std::size_t sizeInBytes;
-		if (first.Size >= second.Size) {
+		std::size_t size;
+		if (first.Size > second.Size) {
 
-			sizeInBytes = first.Size;
+			size = first.Size;
+		}
+
+		else if (first.Size < second.Size) {
+
+			size = second.Size;
+			Resize(first, size);
 		}
 
 		else {
 
-			sizeInBytes = second.Size;
-			Resize(first, sizeInBytes);
+			size = first.Size;
 		}
 
-		// Sum the numbers qword by qword (TODO: add multithreading)
-
-		// Source and destination buffer
-		std::uint64_t* firstBuffer = (std::uint64_t*)first.Buffer;
-		const std::size_t firstSize = sizeInBytes / sizeof(std::uint64_t);
-
-		// The qword in the case the second addend is smaller than 8 bytes
-		const std::uint64_t qword = second.Size / sizeof(std::uint64_t) ? 0 : BytesToQWORD(second.Buffer, second.Size * sizeof(bi_type));
-
-		// Source buffer for the second addend
-		const std::uint64_t* const secondBuffer = second.Size / sizeof(std::uint64_t) ? (const std::uint64_t* const)second.Buffer : &qword;
-		const std::size_t secondSize = second.Size / sizeof(std::uint64_t) ? second.Size / sizeof(std::uint64_t) : 1;
-
-		// The second addend sign as 64 bit
-		const std::uint64_t sign = sign2 ? std::numeric_limits<std::uint64_t>::max() : 0;
+		// Sum the numbers byte by byte (TODO: group in QWORDs and add multithreading)
 
 		std::size_t i = 0;
 		std::uint8_t carry = 0;
-		while (i < firstSize) {
-
-			carry = SumOverflow(firstBuffer[i], i >= secondSize ? sign : secondBuffer[i], carry);
-			i++;
-		}
-
-		// Sum the remaining bytes
-		i = i * sizeof(std::uint64_t);
-		while (i < sizeInBytes) {
+		while (i < size) {
 
 			bi_type toSum = i >= second.Size ? sign2 : second.Buffer[i];
 
 			bi_type value = first.Buffer[i];
-			first.Buffer[i] += toSum;
-			const bool overflow = first.Buffer[i] < value;
+			first.Buffer[i] = first.Buffer[i] + toSum;
+			bool overflow = first.Buffer[i] < value;
 
 			value = first.Buffer[i];
 			first.Buffer[i] += carry;
@@ -218,11 +183,12 @@ namespace Utils {
 		if (carry && sameSign) {
 
 			// ... and the sum result has a different sign from the previous one...
-			if (first.Buffer[sizeInBytes - 1] != sign1) {
+			if (first.Buffer[size - 1] != sign1) {
 
 				// ... then resize the destination buffer and add the sign at the end
-				Resize(first, sizeInBytes + 1, false);
-				first.Buffer[sizeInBytes] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+				Resize(first, size + 1, false);
+				first.Buffer[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+				size++;
 			}
 		}
 	}
