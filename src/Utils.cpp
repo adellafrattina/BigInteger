@@ -5,6 +5,149 @@
 #undef BI_SIGN
 #define BI_SIGN(x) x.Buffer[x.Size - 1]
 
+/// <summary>
+/// Counts the number of bits that are not considered padding
+/// </summary>
+/// <param name="n">The raw big integer</param>
+/// <param name="size">The raw big integer size</param>
+/// <returns>The number of bits that have an impact on the number representation</returns>
+inline static std::size_t CountSignificantBits(const bi_type* const n, std::size_t size) {
+
+	std::size_t bitSize = 0;
+	if (n[size - 1] == BI_PLUS_SIGN) {
+
+		for (std::size_t i = 0; i < size; i++) {
+
+			if (n[size - 1 - i] != 0) {
+
+				std::size_t min = n[size - 1 - i];
+				bitSize = (size - 1 - i) * 8;
+				bitSize += (std::size_t)log2(min) + 1;
+				break;
+			}
+		}
+	}
+
+	return bitSize;
+}
+
+/// <summary>
+/// Resizes the two given big integers to add padding bits to make the size a power of 2
+/// </summary>
+/// <param name="first">The first big integer</param>
+/// <param name="second">The second big integer</param>
+/// <returns>The new size of both numbers</returns>
+static inline std::size_t MakeSameSizeAsPowerOf2(bi_int& first, bi_int& second) {
+
+	const std::size_t maxBitSize = std::max(CountSignificantBits(first.Buffer, first.Size), CountSignificantBits(second.Buffer, second.Size));
+	const std::size_t newSize = (std::size_t)std::ceill(pow(2.0l, (long long)log2(maxBitSize) + 1) / 8.0l);
+
+	Utils::Resize(first, newSize);
+	Utils::Resize(second, newSize);
+
+	return newSize;
+}
+
+/// <summary>
+/// Executes the Karatsuba algorithm to multiply two big integers of the same size
+/// </summary>
+/// <param name="x">The first factor (must be positive)</param>
+/// <param name="y">The second factor (must be positive)</param>
+/// <returns>The product between the first and the second factor</returns>
+static inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, std::size_t size) {
+
+	if (size <= sizeof(std::uint32_t)) {
+
+		const std::uint64_t product =
+			Utils::BytesToQWORD(x, size) *
+			Utils::BytesToQWORD(y, size);
+		bi_int p;
+		Utils::Resize(p, sizeof(std::uint64_t) + 1, false);
+		std::uint8_t* buffer = (std::uint8_t*)p.Buffer;
+		memcpy_s(buffer, p.Size * sizeof(bi_type), &product, sizeof(product));
+
+		return p;
+	}
+
+	// X1, X2
+	bi_int x1, x2;
+	Utils::Resize(x1, size / 2 + 1, false);
+	Utils::Resize(x2, size / 2 + 1, false);
+	Utils::Copy(x1, { (bi_type*)x + size / 2, size / 2 });
+	Utils::Copy(x2, { (bi_type*)x, size / 2 });
+
+	// Y1, Y2
+	bi_int y1, y2;
+	Utils::Resize(y1, size / 2 + 1, false);
+	Utils::Resize(y2, size / 2 + 1, false);
+	Utils::Copy(y1, { (bi_type*)y + size / 2, size / 2 });
+	Utils::Copy(y2, { (bi_type*)y, size / 2 });
+
+	// U
+	bi_int u = Karatsuba(x1.Buffer, y1.Buffer, (x1.Size - 1));
+
+	// V
+	bi_int v = Karatsuba(x2.Buffer, y2.Buffer, (x2.Size - 1));
+
+	// X1 - X2
+	Utils::Negate(x2);
+	Utils::Add(x1, x2);
+
+	// Y1 - Y2
+	Utils::Negate(y2);
+	Utils::Add(y1, y2);
+
+	const bi_type x1Sign = BI_SIGN(x1);
+	const bi_type y1Sign = BI_SIGN(y1);
+
+	// Make the results positive
+	Utils::Abs(x1);
+	Utils::Abs(y1);
+
+	// Check which number is the biggest
+	//if (x1.Size > y1.Size)
+	//	Utils::Resize(y1, x1.Size);
+
+	//else if (x1.Size < y1.Size)
+	//	Utils::Resize(x1, y1.Size);
+
+	//MakeSameSizeAsPowerOf2(x1, y1);
+
+	// W = (X1 - X2) * (Y1 - Y2)
+	bi_int w = Karatsuba(x1.Buffer, y1.Buffer, size / 2);
+
+	if (x1Sign != y1Sign)
+		Utils::Negate(w);
+
+	bi_int z;
+	Utils::Resize(z, u.Size, false);
+	Utils::Copy(z, u);
+
+	// Z = U + V - W
+	Utils::Add(z, v);
+	Utils::Negate(w);
+	Utils::Add(z, w);
+
+	Utils::Resize(u, u.Size + size + 1, false);
+	Utils::Resize(z, z.Size + size / 2 + 1, false);
+	Utils::ShiftLeft(u.Buffer, u.Size * sizeof(bi_type), size * 8);
+	Utils::ShiftLeft(z.Buffer, z.Size * sizeof(bi_type), size * 8 / 2);
+
+	Utils::Add(u, z);
+	Utils::Add(u, v);
+
+	// Free memory
+	Utils::Clear(x1);
+	Utils::Clear(x2);
+	Utils::Clear(y1);
+	Utils::Clear(y2);
+	Utils::Clear(v);
+	Utils::Clear(w);
+	Utils::Clear(z);
+
+	return u;
+}
+
 namespace Utils {
 
 	void PrintAsBinary(void* data, std::size_t size_in_bytes) {
@@ -24,7 +167,15 @@ namespace Utils {
 	void Resize(bi_int& data, std::size_t new_size, bool ext_sign) {
 
 		const std::size_t& old_size = data.Size;
-		PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data.Buffer, old_size, new_size);
+		if (data.Buffer == nullptr) {
+
+			PRINT("Resize called (data: nullptr, new_size: %zu)", new_size);
+		}
+
+		else {
+
+			PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data.Buffer, old_size, new_size);
+		}
 
 		bi_type* tmp = data.Buffer;
 		data.Buffer = new bi_type[new_size];
@@ -33,7 +184,7 @@ namespace Utils {
 		if (tmp != nullptr) {
 
 			// Copy the old data
-			memmove_s(data.Buffer, new_size * sizeof(bi_type), tmp, old_size * sizeof(bi_type));
+			memmove_s(data.Buffer, new_size * sizeof(bi_type), tmp, old_size > new_size ? new_size : old_size * sizeof(bi_type));
 
 			// Fill the rest of the new buffer data with the old data sign
 			if (ext_sign)
@@ -46,13 +197,46 @@ namespace Utils {
 		data.Size = new_size;
 	}
 
+	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest) {
+
+		memcpy_s(dest.Buffer + offset_dest, dest.Size * sizeof(bi_type), src.Buffer, (src.Size) * sizeof(bi_type));
+	}
+
+	void Clear(bi_int& data) {
+
+		if (data.Buffer != nullptr) {
+
+			PRINT("Clear called (data: %p, size: %zu)", data.Buffer, data.Size);
+			delete[] data.Buffer;
+		}
+
+		data.Buffer = nullptr;
+		data.Size = 0;
+	}
+
+	void ShrinkToFit(bi_int& data) {
+
+		std::size_t size = 0;
+		for (std::size_t i = 0; i < data.Size; i++) {
+
+			if (data.Buffer[data.Size - i - 1] != 0) {
+
+				size = data.Size - i + 1;
+				break;
+			}
+		}
+
+		Resize(data, size, false);
+	}
+
 	std::uint64_t BytesToQWORD(const void* data, std::size_t size_in_bytes) {
 
 		const std::uint8_t* buffer = (std::uint8_t*)data;
 		std::uint64_t qword = 0;
 
-		for (std::size_t i = 0; i < size_in_bytes - 1; i++)
-			qword |= static_cast<std::uint64_t>(buffer[i] << (i * 8));
+		size_in_bytes = std::min(size_in_bytes, 8ull);
+		for (std::size_t i = 0; i < size_in_bytes; i++)
+			qword |= static_cast<std::uint64_t>(buffer[i]) << (i * 8);
 
 		return qword;
 	}
@@ -68,6 +252,12 @@ namespace Utils {
 
 		Not(data.Buffer, data.Size * sizeof(bi_type));
 		Increment(data);
+	}
+
+	void Abs(bi_int& data) {
+
+		if (IsNegative(data))
+			Negate(data);
 	}
 
 	void Increment(bi_int& data) {
@@ -193,6 +383,36 @@ namespace Utils {
 		}
 	}
 
+	void Mult(bi_int& first, const bi_int& second) {
+
+		// First factor sign
+		const bi_type sign1 = BI_SIGN(first);
+
+		// Second factor sign
+		const bi_type sign2 = BI_SIGN(second);
+
+		bi_int x;
+		Utils::Resize(x, first.Size, false);
+		Utils::Copy(x, first);
+
+		bi_int y;
+		Utils::Resize(y, second.Size, false);
+		Utils::Copy(y, second);
+
+		Abs(x);
+		Abs(y);
+
+		std::size_t size = MakeSameSizeAsPowerOf2(x, y);
+
+		Utils::Clear(first);
+		first = Karatsuba(x.Buffer, y.Buffer, size);
+
+		if (sign1 != sign2) {
+
+			Utils::Negate(first);
+		}
+	}
+
 	// --- Bitwise operations ---
 
 	void Not(void* data, std::size_t size_in_bytes) {
@@ -215,30 +435,21 @@ namespace Utils {
 		std::uint8_t* buffer = (std::uint8_t*)data;
 		std::size_t offset = shift_amount / 8;
 		std::uint8_t rest = (std::uint8_t)(shift_amount % 8);
-		memmove_s(buffer, size_in_bytes, buffer + offset, size_in_bytes - offset);
-		memset(buffer + size_in_bytes - offset, 0, offset);
+		memmove_s(buffer + offset, size_in_bytes, buffer, size_in_bytes - offset);
+		memset(buffer, 0, offset);
 
 		// Shift the last 'rest' bits to the left
 
 		std::uint8_t* byte;
-		for (byte = (std::uint8_t*)data; size_in_bytes--; byte++) {
+		for (byte = size_in_bytes - 1 + (std::uint8_t*)data; size_in_bytes--; byte--) {
 
-			std::uint8_t bit = 0;
+			std::uint8_t bits = 0;
 			if (size_in_bytes)
-				bit = byte[1] & (0xFF << (CHAR_BIT - rest));
+				bits = byte[-1] & (0xFF << (CHAR_BIT - rest));
 
 			*byte <<= rest;
-			*byte |= (bit >> (CHAR_BIT - rest));
+			*byte |= (bits >> (CHAR_BIT - rest));
 		}
-
-		//std::uint8_t bits1 = 0, bits2 = 0;
-		//for (std::size_t i = 0; i < buffer_size - offset; i++) {
-
-		//	bits2 = buffer[buffer_size - offset - i - 1] & (std::uint8_t)((std::uint8_t)0b11111111 << (std::uint8_t)(8 - rest));
-		//	buffer[buffer_size - offset - i - 1] <<= rest;
-		//	buffer[buffer_size - offset - i - 1] |= (bits1 >> (8 - rest));
-		//	bits1 = bits2;
-		//}
 	}
 
 	void ShiftRight(void* data, std::size_t size_in_bytes, std::size_t shift_amount) {
@@ -253,33 +464,22 @@ namespace Utils {
 		std::uint8_t* buffer = (std::uint8_t*)data;
 		std::size_t offset = shift_amount / 8;
 		std::uint8_t rest = (std::uint8_t)(shift_amount % 8);
-		memmove_s(buffer + offset, size_in_bytes, buffer, size_in_bytes - offset);
-		memset(buffer, 0, offset);
-
-		// Shift the last 'rest' bits to the right
+		memmove_s(buffer, size_in_bytes, buffer + offset, size_in_bytes - offset);
+		memset(buffer + size_in_bytes - offset, 0, offset);
 
 		std::uint8_t* byte;
-		for (byte = size_in_bytes - 1 + (std::uint8_t*)data; size_in_bytes--; byte--) {
+		for (byte = (std::uint8_t*)data; size_in_bytes--; byte++) {
 
-			std::uint8_t bit = 0;
+			std::uint8_t bits = 0;
 			if (size_in_bytes)
-				bit = byte[-1] & (0xFF >> (CHAR_BIT - rest));
+				bits = byte[1] & (0xFF >> (CHAR_BIT - rest));
 
 			*byte >>= rest;
-			*byte |= (bit << (CHAR_BIT - rest));
+			*byte |= (bits << (CHAR_BIT - rest));
 		}
-
-		//std::uint8_t bits1 = 0, bits2 = 0;
-		//for (std::size_t i = 0; i < buffer_size - offset; i++) {
-
-		//	bits2 = buffer[buffer_size - offset - i - 1] & (std::uint8_t)((std::uint8_t)0b11111111 << (std::uint8_t)(8 - rest));
-		//	buffer[buffer_size - offset - i - 1] <<= rest;
-		//	buffer[buffer_size - offset - i - 1] |= (bits1 >> (8 - rest));
-		//	bits1 = bits2;
-		//}
 	}
 
-	void ShiftLeft1(void* data, std::size_t size_in_bytes) {
+	void ShiftLeft1BE(void* data, std::size_t size_in_bytes) {
 
 		std::uint8_t* byte;
 		for (byte = (std::uint8_t*)data; size_in_bytes--; byte++) {
@@ -293,7 +493,7 @@ namespace Utils {
 		}
 	}
 
-	void ShiftRight1(void* data, std::size_t size_in_bytes) {
+	void ShiftRight1BE(void* data, std::size_t size_in_bytes) {
 
 		std::uint8_t* byte;
 		for (byte = size_in_bytes - 1 + (std::uint8_t*)data; size_in_bytes--; byte--) {

@@ -22,6 +22,26 @@ namespace Utils {
 	void Resize(bi_int& data, std::size_t new_size, bool ext_sign = true);
 
 	/// <summary>
+	/// Copies the src big integer into the dest one
+	/// </summary>
+	/// <param name="dest">The destination</param>
+	/// <param name="src">The source</param>
+	/// <param name="offset_dest">The destination offset (zero by default)</param>
+	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest = 0);
+
+	/// <summary>
+	/// Clears the big integer
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Clear(bi_int& data);
+
+	/// <summary>
+	/// Removes unnecessary zeros
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void ShrinkToFit(bi_int& data);
+
+	/// <summary>
 	/// Converts the first 8 bytes of the given array into a qword (64 bit word)
 	/// </summary>
 	/// <param name="data">The desired array</param>
@@ -45,6 +65,12 @@ namespace Utils {
 	void Negate(bi_int& data);
 
 	/// <summary>
+	/// Turns every number into a positive number
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Abs(bi_int& data);
+
+	/// <summary>
 	/// Increments the big integer by one. It could resize the array if overflow occurs
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
@@ -63,6 +89,14 @@ namespace Utils {
 	/// <param name="first">The first addend, where the result will be stored</param>
 	/// <param name="second">The second addend</param>
 	void Add(bi_int& first, const bi_int& second);
+
+	/// <summary>
+	/// Multiplies the first big integer with the second one. The result is stored in the first one. The first array could be resized if
+	/// the second one is bigger or if overflow occurs
+	/// </summary>
+	/// <param name="first">The first factor, where the result will be stored</param>
+	/// <param name="second">The second factor</param>
+	void Mult(bi_int& first, const bi_int& second);
 
 	// --- Bitwise operations ---
 
@@ -94,12 +128,15 @@ namespace Utils {
 	/// </summary>
 	/// <param name="data">The desired array</param>
 	/// <param name="size_in_bytes">The array size in bytes</param>
-	void ShiftLeft1(void* data, std::size_t size_in_bytes);
+	/// <exception cref="THIS MUST NOT BE USED WITH REGULAR BIG INTEGERS"></exception>
+	void ShiftLeft1BE(void* data, std::size_t size_in_bytes);
 
 	/// <summary>
+	/// NOTE: THIS MUST NOT BE USED WITH REGULAR BIG INTEGERS
 	/// Shifts all the bits to the right by one
 	/// </summary>
 	/// <param name="data">The desired array</param>
 	/// <param name="size_in_bytes">The array size in bytes</param>
-	void ShiftRight1(void* data, std::size_t size_in_bytes);
+	/// <exception cref="THIS MUST NOT BE USED WITH REGULAR BIG INTEGERS"></exception>
+	void ShiftRight1BE(void* data, std::size_t size_in_bytes);
 }

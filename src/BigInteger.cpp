@@ -116,7 +116,7 @@ namespace bi {
 			}
 
 			// Shift left by one position
-			ShiftLeft1(bcdBuffer, bcdBufferSize);
+			ShiftLeft1BE(bcdBuffer, bcdBufferSize);
 		}
 
 		// Convert into 2cp
@@ -129,7 +129,12 @@ namespace bi {
 		// Shift the bits in the correct position to create the string buffer
 		for (std::size_t i = 0; i < bcdBufferSize - 1; i++) {
 
-			ShiftLeft(bcdBuffer, bcdBufferSize - 1 - i, 4);
+			// Shift by 4
+			ShiftLeft1BE(bcdBuffer, bcdBufferSize - 1 - i);
+			ShiftLeft1BE(bcdBuffer, bcdBufferSize - 1 - i);
+			ShiftLeft1BE(bcdBuffer, bcdBufferSize - 1 - i);
+			ShiftLeft1BE(bcdBuffer, bcdBufferSize - 1 - i);
+
 			bcdBuffer[bcdBufferSize - 2 - i] >>= 4;
 		}
 
@@ -355,9 +360,10 @@ namespace bi {
 
 	Integer Integer::operator*(const Integer& other) {
 
-		assert((void("Not implemented yet"), false));
+		Integer new_int(*this);
+		Mult(new_int.m_Data, other.m_Data);
 
-		return Integer(0);
+		return new_int;
 	}
 
 	Integer Integer::operator/(const Integer& other) {
@@ -500,7 +506,7 @@ namespace bi {
 			}
 
 			// Shift right by one position
-			ShiftRight1(bcdBuffer, bcdBufferSize);
+			ShiftRight1BE(bcdBuffer, bcdBufferSize);
 
 			// We start from an offset to avoid checking values that have already been processed
 			for (std::size_t i = offset; i < bcdBufferSize - 1; i++) {
