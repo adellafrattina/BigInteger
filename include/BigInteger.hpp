@@ -126,7 +126,6 @@ namespace bi {
 
 		void Init(std::int64_t n);
 		bool Init(const std::string& str);
-		void Clear();
 
 		mutable bi_int m_Data; // Mutable key is temporary
 	};

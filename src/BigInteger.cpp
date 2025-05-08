@@ -54,7 +54,7 @@ namespace bi {
 
 	Integer::~Integer() {
 
-		Clear();
+		Clear(m_Data);
 	}
 
 	std::string Integer::ToString() const {
@@ -436,7 +436,7 @@ namespace bi {
 
 	void Integer::Init(std::int64_t n) {
 
-		Clear();
+		Clear(m_Data);
 
 		m_Data.Size = sizeof(std::int64_t) / sizeof(bi_type) + 1;
 		m_Data.Buffer = new bi_type[m_Data.Size];
@@ -491,7 +491,7 @@ namespace bi {
 		}
 
 		// Set up data
-		Clear();
+		Clear(m_Data);
 		Resize(m_Data, (std::size_t)std::ceil(std::ceil((long double)strLength * log2(10.0l)) / (sizeof(bi_type) * 8.0l)) + 1); // Plus one for the sign
 
 		std::size_t offset = 0;
@@ -542,17 +542,5 @@ namespace bi {
 		}
 
 		return true;
-	}
-
-	void Integer::Clear() {
-
-		if (m_Data.Buffer != nullptr) {
-
-			PRINT("Clear called (data: %p, size: %zu)", m_Data.Buffer, m_Data.Size);
-			delete[] m_Data.Buffer;
-		}
-
-		m_Data.Buffer = nullptr;
-		m_Data.Size = 0;
 	}
 }

@@ -97,6 +97,7 @@ static inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 	Utils::Negate(y2);
 	Utils::Add(y1, y2);
 
+	// Save the original sign
 	const bi_type x1Sign = BI_SIGN(x1);
 	const bi_type y1Sign = BI_SIGN(y1);
 
@@ -104,18 +105,10 @@ static inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 	Utils::Abs(x1);
 	Utils::Abs(y1);
 
-	// Check which number is the biggest
-	//if (x1.Size > y1.Size)
-	//	Utils::Resize(y1, x1.Size);
-
-	//else if (x1.Size < y1.Size)
-	//	Utils::Resize(x1, y1.Size);
-
-	//MakeSameSizeAsPowerOf2(x1, y1);
-
 	// W = (X1 - X2) * (Y1 - Y2)
 	bi_int w = Karatsuba(x1.Buffer, y1.Buffer, size / 2);
 
+	// Add the sign
 	if (x1Sign != y1Sign)
 		Utils::Negate(w);
 
@@ -128,6 +121,7 @@ static inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 	Utils::Negate(w);
 	Utils::Add(z, w);
 
+	// P = U * 2^n + Z * 2^n/2 + V
 	Utils::Resize(u, u.Size + size + 1, false);
 	Utils::Resize(z, z.Size + size / 2 + 1, false);
 	Utils::ShiftLeft(u.Buffer, u.Size * sizeof(bi_type), size * 8);

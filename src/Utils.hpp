@@ -132,7 +132,6 @@ namespace Utils {
 	void ShiftLeft1BE(void* data, std::size_t size_in_bytes);
 
 	/// <summary>
-	/// NOTE: THIS MUST NOT BE USED WITH REGULAR BIG INTEGERS
 	/// Shifts all the bits to the right by one
 	/// </summary>
 	/// <param name="data">The desired array</param>
