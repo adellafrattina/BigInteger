@@ -14,6 +14,11 @@ To generate project files, you can run the script files inside the `vendor` fold
   - `premake5.exe --file=build.lua vs2022` or run the script `build-vs2022.bat` to generate Visual Studio 2022 project files
   - `premake5.exe --file=build.lua gmake2` or run the script `build-gmake.bat` to generate Makefiles project files
 
+### MacOSX
+  Inside `vendor/macosx`, run the command:
+  - `./premake5 --file=build.lua xcode4` or run the script `build-xcode.sh` to generate Xcode project files
+  - `./premake5 --file=build.lua gmake2` or run the script `build-gmake.sh` to generate Makefiles project files
+
 ## Algorithms
 The main algorithms used in this library are the following:
 - [Double dabble algorithm](https://en.wikipedia.org/wiki/Double_dabble) to convert integers from an array of binary numbers to a string-represented decimal number and its reverse version to convert from a string-represented decimal number to an array of binary numbers
