@@ -14,17 +14,16 @@
 inline static std::size_t CountSignificantBits(const bi_type* const n, std::size_t size) {
 
 	std::size_t bitSize = 0;
-	if (n[size - 1] == BI_PLUS_SIGN) {
+	const bi_type& sign = n[size - 1];
 
-		for (std::size_t i = 0; i < size; i++) {
+	for (std::size_t i = 1; i < size; i++) {
 
-			if (n[size - 1 - i] != 0) {
+		if (n[size - 1 - i] != sign) {
 
-				std::size_t min = n[size - 1 - i];
-				bitSize = (size - 1 - i) * 8;
-				bitSize += (std::size_t)log2(min) + 1;
-				break;
-			}
+			std::size_t min = n[size - 1 - i];
+			bitSize = (size - 1 - i) * 8;
+			bitSize += (std::size_t)log2(min) + 1;
+			break;
 		}
 	}
 
