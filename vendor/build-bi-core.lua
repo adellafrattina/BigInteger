@@ -5,6 +5,7 @@ project "bi-core"
 	cppdialect "C++20"
 	targetdir ("" .. tdir .. "/%{prj.name}")
 	objdir ("" .. odir .. "/%{prj.name}")
+	targetname ("BigInteger")
 
 	files {
 
