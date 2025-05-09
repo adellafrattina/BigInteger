@@ -38,3 +38,5 @@ build/**
 !build/.empty
 **.lnk
 !vendor/windows/*.exe
+**.DS_Store
+

@@ -1,7 +1,22 @@
 #include <cstdlib>
 #include <cstdint>
+#include <memory>
 
-#include "BigInteger.hpp"
+#include <BigInteger.hpp>
+
+#undef bi_memcpy
+#if defined(_WIN32)
+	#define bi_memcpy(dest, dest_size, src, src_size) memcpy_s(dest, dest_size, src, src_size)
+#else
+	#define bi_memcpy(dest, dest_size, src, src_size) std::memcpy(dest, src, src_size)
+#endif
+
+#undef bi_memmove
+#if defined(_WIN32)
+	#define bi_memmove(dest, dest_size, src, src_size) memmove_s(dest, dest_size, src, src_size)
+#else
+	#define bi_memmove(dest, dest_size, src, src_size) std::memmove(dest, src, src_size)
+#endif
 
 namespace Utils {
 

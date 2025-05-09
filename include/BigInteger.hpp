@@ -9,7 +9,7 @@
 //#define BI_PRINT_DEBUG_INFO
 
 #ifndef BI_STATIC
-	#ifdef _WIN32
+	#if defined(_WIN32)
 		#ifdef BI_BUILD_DLL
 			#define BI_API __declspec(dllexport)
 		#else
@@ -18,6 +18,8 @@
 		#ifdef _MSC_VER
 			#pragma warning(disable : 4251)
 		#endif
+	#elif defined(__APPLE__)
+		#define BI_API __attribute__((visibility("default")))
 	#else
 		#error Dynamic linking is not available on the current OS
 	#endif

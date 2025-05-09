@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cmath>
 
 #include "Utils.hpp"
 
@@ -28,7 +29,7 @@ namespace bi {
 	}
 
 	Integer::Integer(const Integer& other)
-		: m_Data(new bi_type[other.m_Data.Size], other.m_Data.Size)
+		: m_Data({ new bi_type[other.m_Data.Size], other.m_Data.Size })
 
 	{
 
@@ -36,7 +37,7 @@ namespace bi {
 	}
 
 	Integer::Integer(Integer&& other) noexcept
-		: m_Data(other.m_Data.Buffer, other.m_Data.Size)
+		: m_Data({ other.m_Data.Buffer, other.m_Data.Size })
 
 	{
 
@@ -151,7 +152,7 @@ namespace bi {
 		// Create the actual digit string
 		std::string data;
 		data.resize(bcdBufferSize - 1 - offset + isNegative);
-		memcpy_s(data.data() + isNegative, bcdBufferSize - 1 - offset + isNegative, bcdBuffer + offset, bcdBufferSize - 1 - offset);
+		bi_memcpy(data.data() + isNegative, bcdBufferSize - 1 - offset + isNegative, bcdBuffer + offset, bcdBufferSize - 1 - offset);
 		if (isNegative)
 			data[0] = '-';
 
@@ -488,7 +489,7 @@ namespace bi {
 		m_Data.Buffer[m_Data.Size - 1] = n < 0 ? BI_MINUS_SIGN : BI_PLUS_SIGN;
 
 		std::uint8_t* buffer = (std::uint8_t*)m_Data.Buffer;
-		memcpy_s(buffer, m_Data.Size * sizeof(bi_type), &n, sizeof(n));
+		bi_memcpy(buffer, m_Data.Size * sizeof(bi_type), &n, sizeof(n));
 	}
 
 	bool Integer::Init(const std::string& str) {

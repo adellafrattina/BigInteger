@@ -23,6 +23,17 @@ project "bi-core"
 	filter "system:Windows"
 		defines "BI_PLATFORM_WINDOWS"
 
+	-- MacOSX
+	filter "system:macosx"
+		systemversion "latest"
+		defines "BI_PLATFORM_MACOSX"
+
+		externalincludedirs {
+
+			"../include",
+			"../src"
+		}
+
 	-- Debug
 	filter "configurations:Debug*"
 		defines "BI_DEBUG"
