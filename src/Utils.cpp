@@ -32,12 +32,12 @@ inline static std::size_t CountSignificantBits(const bi_type* const n, std::size
 }
 
 /// <summary>
-/// Resizes the two given big integers to add padding bits to make the size a power of 2
+/// Resizes the two given big integers to add padding bits to make the size a power of 2. Mainly used in the Karatsuba algorithm implementation
 /// </summary>
 /// <param name="first">The first big integer</param>
 /// <param name="second">The second big integer</param>
 /// <returns>The new size of both numbers</returns>
-static inline std::size_t MakeSameSizeAsPowerOf2(bi_int& first, bi_int& second) {
+inline static std::size_t MakeSameSizeAsPowerOf2(bi_int& first, bi_int& second) {
 
 	const std::size_t maxBitSize = std::max(CountSignificantBits(first.Buffer, first.Size), CountSignificantBits(second.Buffer, second.Size));
 	const std::size_t newSize = (std::size_t)std::ceill(pow(2.0l, (long long)log2(maxBitSize) + 1) / 8.0l);
@@ -49,12 +49,35 @@ static inline std::size_t MakeSameSizeAsPowerOf2(bi_int& first, bi_int& second) 
 }
 
 /// <summary>
+/// Calculates the minimum byte size for an integer
+/// </summary>
+/// <param name="n">The desired integer</param>
+/// <returns>The minimum byte size for the specified integer</returns>
+inline static std::size_t CalcMinByteSize(const std::uint64_t& n) {
+
+	return n == 0 ? 1 : (std::size_t)std::ceill((long double)((std::size_t)log2l((long double)n) + 1) / 8.0l);
+}
+
+/// <summary>
+/// Calculates the minimum byte size for a big integer
+/// </summary>
+/// <param name="n">The desired big integer</param>
+/// <returns>The minimum byte size for the specified big integer</returns>
+inline static std::size_t CalcMinByteSize(const bi_int& n) {
+
+	std::size_t bits = CountSignificantBits(n.Buffer, n.Size);
+
+	return bits == 0 ? 1 : (std::size_t)std::ceill((long double)bits / 8.0l);
+}
+
+/// <summary>
 /// Executes the Karatsuba algorithm to multiply two big integers of the same size
 /// </summary>
-/// <param name="x">The first factor (must be positive)</param>
-/// <param name="y">The second factor (must be positive)</param>
+/// <param name="x">The first factor (must be positive and without the sign byte)</param>
+/// <param name="y">The second factor (must be positive and without the sign byte)</param>
+/// <param name="size">Both factors size</param>
 /// <returns>The product between the first and the second factor</returns>
-static inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, std::size_t size) {
+inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, std::size_t size) {
 
 	if (size <= sizeof(std::uint32_t)) {
 
@@ -62,9 +85,9 @@ static inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 			Utils::BytesToQWORD(x, size) *
 			Utils::BytesToQWORD(y, size);
 		bi_int p;
-		Utils::Resize(p, sizeof(std::uint64_t) + 1, false);
+		Utils::Resize(p, CalcMinByteSize(product) + 1, false);
 		std::uint8_t* buffer = (std::uint8_t*)p.Buffer;
-		memcpy_s(buffer, p.Size * sizeof(bi_type), &product, sizeof(product));
+		memcpy_s(buffer, p.Size * sizeof(bi_type), &product, CalcMinByteSize(product));
 
 		return p;
 	}
@@ -121,9 +144,15 @@ static inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 	Utils::Negate(w);
 	Utils::Add(z, w);
 
+	std::uint8_t* a = u.Buffer;
+	std::size_t u_size = u.Size;
+
+	const long double addSizeU = std::ceill(((long double)size * 8.0l - (long double)(u.Size * 8 - CountSignificantBits(u.Buffer, u.Size))) / 8.0l) + 1;
+	const long double addSizeZ = std::ceill(((long double)(size / 2) * 8.0l - (long double)(z.Size * 8 - CountSignificantBits(z.Buffer, z.Size))) / 8.0l) + 1;
+
 	// P = U * 2^n + Z * 2^n/2 + V
-	Utils::Resize(u, u.Size + size + 1, false);
-	Utils::Resize(z, z.Size + size / 2 + 1, false);
+	Utils::Resize(u, u.Size + std::size_t((long double)u.Size + addSizeU), false);
+	Utils::Resize(z, z.Size + std::size_t((long double)z.Size + addSizeZ), false);
 	Utils::ShiftLeft(u.Buffer, u.Size * sizeof(bi_type), size * 8);
 	Utils::ShiftLeft(z.Buffer, z.Size * sizeof(bi_type), size * 8 / 2);
 
@@ -210,10 +239,12 @@ namespace Utils {
 
 	void ShrinkToFit(bi_int& data) {
 
+		const bi_type sign = BI_SIGN(data);
+
 		std::size_t size = 0;
 		for (std::size_t i = 0; i < data.Size; i++) {
 
-			if (data.Buffer[data.Size - i - 1] != 0) {
+			if (data.Buffer[data.Size - i - 1] != sign) {
 
 				size = data.Size - i + 1;
 				break;
@@ -401,10 +432,11 @@ namespace Utils {
 		Utils::Clear(first);
 		first = Karatsuba(x.Buffer, y.Buffer, size);
 
-		if (sign1 != sign2) {
-
+		// Add the sign
+		if (sign1 != sign2)
 			Utils::Negate(first);
-		}
+
+		ShrinkToFit(first);
 	}
 
 	// --- Bitwise operations ---

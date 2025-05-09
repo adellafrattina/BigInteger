@@ -36,7 +36,7 @@ namespace Utils {
 	void Clear(bi_int& data);
 
 	/// <summary>
-	/// Removes unnecessary zeros
+	/// Removes unnecessary padding bytes
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
 	void ShrinkToFit(bi_int& data);
