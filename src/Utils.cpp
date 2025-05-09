@@ -259,7 +259,7 @@ namespace Utils {
 		const std::uint8_t* buffer = (std::uint8_t*)data;
 		std::uint64_t qword = 0;
 
-		size_in_bytes = std::min(size_in_bytes, 8ull);
+		size_in_bytes = std::min(size_in_bytes, (std::size_t)8);
 		for (std::size_t i = 0; i < size_in_bytes; i++)
 			qword |= static_cast<std::uint64_t>(buffer[i]) << (i * 8);
 
