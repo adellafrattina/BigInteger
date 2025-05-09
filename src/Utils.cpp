@@ -1,4 +1,4 @@
-#include <memory>
+#include <cmath>
 
 #include "Utils.hpp"
 
@@ -87,7 +87,7 @@ inline static bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 		bi_int p;
 		Utils::Resize(p, CalcMinByteSize(product) + 1, false);
 		std::uint8_t* buffer = (std::uint8_t*)p.Buffer;
-		memcpy_s(buffer, p.Size * sizeof(bi_type), &product, CalcMinByteSize(product));
+		bi_memcpy(buffer, p.Size * sizeof(bi_type), &product, CalcMinByteSize(product));
 
 		return p;
 	}
@@ -207,7 +207,7 @@ namespace Utils {
 		if (tmp != nullptr) {
 
 			// Copy the old data
-			memmove_s(data.Buffer, new_size * sizeof(bi_type), tmp, old_size > new_size ? new_size : old_size * sizeof(bi_type));
+			bi_memmove(data.Buffer, new_size * sizeof(bi_type), tmp, old_size > new_size ? new_size : old_size * sizeof(bi_type));
 
 			// Fill the rest of the new buffer data with the old data sign
 			if (ext_sign)
@@ -222,7 +222,7 @@ namespace Utils {
 
 	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest) {
 
-		memcpy_s(dest.Buffer + offset_dest, dest.Size * sizeof(bi_type), src.Buffer, (src.Size) * sizeof(bi_type));
+		bi_memcpy(dest.Buffer + offset_dest, dest.Size * sizeof(bi_type), src.Buffer, (src.Size) * sizeof(bi_type));
 	}
 
 	void Clear(bi_int& data) {
@@ -461,7 +461,7 @@ namespace Utils {
 		std::uint8_t* buffer = (std::uint8_t*)data;
 		std::size_t offset = shift_amount / 8;
 		std::uint8_t rest = (std::uint8_t)(shift_amount % 8);
-		memmove_s(buffer + offset, size_in_bytes, buffer, size_in_bytes - offset);
+		bi_memmove(buffer + offset, size_in_bytes, buffer, size_in_bytes - offset);
 		memset(buffer, 0, offset);
 
 		// Shift the last 'rest' bits to the left
@@ -490,7 +490,7 @@ namespace Utils {
 		std::uint8_t* buffer = (std::uint8_t*)data;
 		std::size_t offset = shift_amount / 8;
 		std::uint8_t rest = (std::uint8_t)(shift_amount % 8);
-		memmove_s(buffer, size_in_bytes, buffer + offset, size_in_bytes - offset);
+		bi_memmove(buffer, size_in_bytes, buffer + offset, size_in_bytes - offset);
 		memset(buffer + size_in_bytes - offset, 0, offset);
 
 		std::uint8_t* byte;
