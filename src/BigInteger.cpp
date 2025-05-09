@@ -32,7 +32,7 @@ namespace bi {
 
 	{
 
-		memcpy_s(m_Data.Buffer, m_Data.Size * sizeof(bi_type), other.m_Data.Buffer, other.m_Data.Size * sizeof(bi_type));
+		Copy(m_Data, other.m_Data);
 	}
 
 	Integer::Integer(Integer&& other) noexcept
@@ -358,6 +358,42 @@ namespace bi {
 		return *this;
 	}
 
+	// Star
+
+	Integer Integer::operator*(std::int64_t n) {
+
+		Integer factor(n);
+		Integer new_int(*this);
+		Mult(new_int.m_Data, factor.m_Data);
+
+		return new_int;
+	}
+
+	Integer& Integer::operator*=(std::int64_t n) {
+
+		Integer factor(n);
+		Mult(m_Data, factor.m_Data);
+
+		return *this;
+	}
+
+	Integer Integer::operator*(const std::string& str) {
+
+		Integer factor(str);
+		Integer new_int(*this);
+		Mult(new_int.m_Data, factor.m_Data);
+
+		return new_int;
+	}
+
+	Integer& Integer::operator*=(const std::string& str) {
+
+		Integer factor(str);
+		Mult(m_Data, factor.m_Data);
+
+		return *this;
+	}
+
 	Integer Integer::operator*(const Integer& other) {
 
 		Integer new_int(*this);
@@ -365,6 +401,15 @@ namespace bi {
 
 		return new_int;
 	}
+
+	Integer& Integer::operator*=(const Integer& other) {
+
+		Mult(m_Data, other.m_Data);
+
+		return *this;
+	}
+
+	// Backslash
 
 	Integer Integer::operator/(const Integer& other) {
 

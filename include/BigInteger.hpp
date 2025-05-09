@@ -102,7 +102,14 @@ namespace bi {
 
 		// Star
 
+		Integer operator*(std::int64_t n);
+		Integer& operator*=(std::int64_t n);
+
+		Integer operator*(const std::string& str);
+		Integer& operator*=(const std::string& str);
+
 		Integer operator*(const Integer& other);
+		Integer& operator*=(const Integer& other);
 
 		// Backslash
 

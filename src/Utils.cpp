@@ -77,7 +77,7 @@ inline static std::size_t CalcMinByteSize(const bi_int& n) {
 /// <param name="y">The second factor (must be positive and without the sign byte)</param>
 /// <param name="size">Both factors size</param>
 /// <returns>The product between the first and the second factor</returns>
-inline bi_int Karatsuba(const bi_type* const x, const bi_type* const y, std::size_t size) {
+inline static bi_int Karatsuba(const bi_type* const x, const bi_type* const y, std::size_t size) {
 
 	if (size <= sizeof(std::uint32_t)) {
 
