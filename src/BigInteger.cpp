@@ -489,7 +489,7 @@ namespace bi {
 		m_Data.Buffer[m_Data.Size - 1] = n < 0 ? BI_MINUS_SIGN : BI_PLUS_SIGN;
 
 		std::uint8_t* buffer = (std::uint8_t*)m_Data.Buffer;
-		memcpy_s(buffer, m_Data.Size * sizeof(bi_type), &n, sizeof(n));
+		bi_memcpy(buffer, m_Data.Size * sizeof(bi_type), &n, sizeof(n));
 	}
 
 	bool Integer::Init(const std::string& str) {
