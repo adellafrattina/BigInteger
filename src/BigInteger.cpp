@@ -196,9 +196,8 @@ namespace bi {
 
 	Integer& Integer::operator=(const Integer& other) {
 
-		assert((void("Not implemented yet"), false));
-
-		m_Data = other.m_Data;
+		Utils::Resize(this->m_Data, other.m_Data.Size, false);
+		Utils::Copy(this->m_Data, other.m_Data);
 
 		return *this;
 	}
@@ -433,13 +432,6 @@ namespace bi {
 		return false;
 	}
 
-	bool Integer::operator==(std::int64_t n) {
-
-		Integer new_int(n);
-
-		return Compare(this->m_Data, new_int.m_Data) == 0;
-	}
-
 	bool Integer::operator==(const std::string& str) {
 
 		Integer new_int(str);
@@ -450,13 +442,6 @@ namespace bi {
 	bool Integer::operator==(const Integer& other) {
 
 		return Compare(this->m_Data, other.m_Data) == 0;
-	}
-
-	bool Integer::operator!=(std::int64_t n) {
-
-		Integer new_int(n);
-
-		return Compare(this->m_Data, new_int.m_Data) != 0;
 	}
 
 	bool Integer::operator!=(const std::string& str) {
@@ -471,13 +456,6 @@ namespace bi {
 		return Compare(this->m_Data, other.m_Data) != 0;
 	}
 
-	bool Integer::operator>(std::int64_t n) {
-
-		Integer new_int(n);
-
-		return Compare(this->m_Data, new_int.m_Data) > 0;
-	}
-
 	bool Integer::operator>(const std::string& str) {
 
 		Integer new_int(str);
@@ -488,13 +466,6 @@ namespace bi {
 	bool Integer::operator>(const Integer& other) {
 
 		return Compare(this->m_Data, other.m_Data) > 0;
-	}
-
-	bool Integer::operator<(std::int64_t n) {
-
-		Integer new_int(n);
-
-		return Compare(this->m_Data, new_int.m_Data) < 0;
 	}
 
 	bool Integer::operator<(const std::string& str) {
@@ -509,13 +480,6 @@ namespace bi {
 		return Compare(this->m_Data, other.m_Data) < 0;
 	}
 
-	bool Integer::operator>=(std::int64_t n) {
-
-		Integer new_int(n);
-
-		return Compare(this->m_Data, new_int.m_Data) > 0 || Compare(this->m_Data, new_int.m_Data) == 0;
-	}
-
 	bool Integer::operator>=(const std::string& str) {
 
 		Integer new_int(str);
@@ -526,13 +490,6 @@ namespace bi {
 	bool Integer::operator>=(const Integer& other) {
 
 		return Compare(this->m_Data, other.m_Data) > 0 || Compare(this->m_Data, other.m_Data) == 0;
-	}
-
-	bool Integer::operator<=(std::int64_t n) {
-
-		Integer new_int(n);
-
-		return Compare(this->m_Data, new_int.m_Data) < 0 || Compare(this->m_Data, new_int.m_Data) == 0;
 	}
 
 	bool Integer::operator<=(const std::string& str) {
