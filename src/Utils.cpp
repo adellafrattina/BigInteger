@@ -269,6 +269,41 @@ namespace Utils {
 
 	// --- Mathematical operations ---
 
+	int Compare(const bi_int& first, const bi_int& second) {
+
+		const bi_type* firstByte = first.Buffer + first.Size - 1;
+		const bi_type* secondByte = second.Buffer + second.Size - 1;
+
+		// If the first one is positive and the second one is negative, then return 1, else return -1
+		if (firstByte[0] < secondByte[0])
+			return 1;
+		else if (firstByte[0] > secondByte[0])
+			return -1;
+
+		const std::size_t firstBitSize = CountSignificantBits(first.Buffer, first.Size);
+		const std::size_t secondBitSize = CountSignificantBits(second.Buffer, second.Size);
+
+		// If the number of significant bits in the first number is higher than the second one, then return 1, else return -1
+		if (firstBitSize > secondBitSize)
+			return 1;
+		else if (firstBitSize < secondBitSize)
+			return -1;
+
+		std::size_t size = (std::size_t)std::ceill((long double)firstBitSize / 8.0l);
+
+		// Check every byte in the two numbers
+		do {
+
+			if (first.Buffer[size] > second.Buffer[size])
+				return 1;
+			else if (first.Buffer[size] < second.Buffer[size])
+				return -1;
+
+		} while (size--);
+
+		return 0;
+	}
+
 	void Negate(bi_int& data) {
 
 		Not(data.Buffer, data.Size * sizeof(bi_type));

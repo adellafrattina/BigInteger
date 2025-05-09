@@ -423,44 +423,32 @@ namespace bi {
 
 	bool Integer::operator==(const Integer& other) {
 
-		assert((void("Not implemented yet"), false));
-
-		return false;
+		return Compare(this->m_Data, other.m_Data) == 0;
 	}
 
 	bool Integer::operator!=(const Integer& other) {
 
-		assert((void("Not implemented yet"), false));
-
-		return false;
+		return Compare(this->m_Data, other.m_Data) != 0;
 	}
 
 	bool Integer::operator>(const Integer& other) {
 
-		assert((void("Not implemented yet"), false));
-
-		return false;
+		return Compare(this->m_Data, other.m_Data) > 0;
 	}
 
 	bool Integer::operator<(const Integer& other) {
 
-		assert((void("Not implemented yet"), false));
-
-		return false;
+		return Compare(this->m_Data, other.m_Data) < 0;
 	}
 
 	bool Integer::operator>=(const Integer& other) {
 
-		assert((void("Not implemented yet"), false));
-
-		return false;
+		return Compare(this->m_Data, other.m_Data) > 0 || Compare(this->m_Data, other.m_Data) == 0;
 	}
 
 	bool Integer::operator<=(const Integer& other) {
 
-		assert((void("Not implemented yet"), false));
-
-		return false;
+		return Compare(this->m_Data, other.m_Data) < 0 || Compare(this->m_Data, other.m_Data) == 0;
 	}
 
 	// Stream
