@@ -4,29 +4,72 @@
 
 int main() {
 
-	bi::Integer n1(0); // 18'446'744'073'709'551'615 18'000'000'000'009'551'615 18446744073709551615 4294967295 9223372036854775807
+	std::cout << "Type the number to select an operation:\n";
+	std::cout << " (1) +\n";
+	std::cout << " (2) -\n";
+	std::cout << " (3) x\n";
+	std::cout << " (4) compare\n";
+
+	std::cout << ">";
+	int in;
+	std::cin >> in;
+	std::cout << "\n";
+
+	bi::Integer n1(0);
 	bi::Integer n2(0);
-	std::cout << "Insert first number: ";
-	std::cin >> n1;
+	if (in >= 1 && in <= 4) {
 
-	if (std::cin.fail()) {
+		std::cout << "Insert first number: ";
+		std::cin >> n1;
 
-		std::cout << "Not a number\n";
+		if (std::cin.fail()) {
 
-		return 1;
+			std::cout << "Not a number\n";
+
+			return 1;
+		}
+
+		std::cout << "Insert second number: ";
+		std::cin >> n2;
+
+		if (std::cin.fail()) {
+
+			std::cout << "Not a number\n";
+
+			return 1;
+		}
 	}
 
-	std::cout << "Insert second number: ";
-	std::cin >> n2;
+	bi::Integer n;
+	switch (in) {
 
-	if (std::cin.fail()) {
+		case 1: n = n1 + n2; break;
+		case 2: n = n1 - n2; break;
+		case 3: n = n1 * n2; break;
+		case 4:
 
-		std::cout << "Not a number\n";
+			if (n1 == n2)
+				std::cout << n1 << " == " << n2 << "\n";
+			if (n1 != n2)
+				std::cout << n1 << " != " << n2 << "\n";
+			if (n1 > n2)
+				std::cout << n1 << " > " << n2 << "\n";
+			if (n1 < n2)
+				std::cout << n1 << " < " << n2 << "\n";
+			if (n1 >= n2)
+				std::cout << n1 << " >= " << n2 << "\n";
+			if (n1 <= n2)
+				std::cout << n1 << " <= " << n2 << "\n";
 
-		return 1;
+			return 0;
+
+		default:
+			std::cout << "Invalid operation\n";
+			return 1;
 	}
 
-	bi::Integer n = n1 * n2;
 	std::cout << "Result: " << n << "\n";
 	std::cout << "Size in bytes: " << n.SizeInBytes() << "\n";
+
+	return 0;
 }
