@@ -71,6 +71,14 @@ namespace Utils {
 	/// <returns>True if the number is negative, false if not</returns>
 	bool IsNegative(const bi_int& data);
 
+	/// <summary>
+	/// Counts the number of bits that are not considered padding
+	/// </summary>
+	/// <param name="n">The raw big integer</param>
+	/// <param name="size">The raw big integer size</param>
+	/// <returns>The number of bits that have an impact on the number representation</returns>
+	std::size_t CountSignificantBits(const bi_type* const n, std::size_t size);
+
 	// --- Mathematical operations ---
 
 	/// <summary>

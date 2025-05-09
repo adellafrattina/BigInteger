@@ -6,31 +6,6 @@
 #define BI_SIGN(x) x.Buffer[x.Size - 1]
 
 /// <summary>
-/// Counts the number of bits that are not considered padding
-/// </summary>
-/// <param name="n">The raw big integer</param>
-/// <param name="size">The raw big integer size</param>
-/// <returns>The number of bits that have an impact on the number representation</returns>
-inline static std::size_t CountSignificantBits(const bi_type* const n, std::size_t size) {
-
-	std::size_t bitSize = 0;
-	const bi_type& sign = n[size - 1];
-
-	for (std::size_t i = 1; i < size; i++) {
-
-		if (n[size - 1 - i] != sign) {
-
-			std::size_t min = n[size - 1 - i];
-			bitSize = (size - 1 - i) * 8;
-			bitSize += (std::size_t)log2(min) + 1;
-			break;
-		}
-	}
-
-	return bitSize;
-}
-
-/// <summary>
 /// Resizes the two given big integers to add padding bits to make the size a power of 2. Mainly used in the Karatsuba algorithm implementation
 /// </summary>
 /// <param name="first">The first big integer</param>
@@ -38,7 +13,7 @@ inline static std::size_t CountSignificantBits(const bi_type* const n, std::size
 /// <returns>The new size of both numbers</returns>
 inline static std::size_t MakeSameSizeAsPowerOf2(bi_int& first, bi_int& second) {
 
-	const std::size_t maxBitSize = std::max(CountSignificantBits(first.Buffer, first.Size), CountSignificantBits(second.Buffer, second.Size));
+	const std::size_t maxBitSize = std::max(Utils::CountSignificantBits(first.Buffer, first.Size), Utils::CountSignificantBits(second.Buffer, second.Size));
 	const std::size_t newSize = (std::size_t)std::ceill(pow(2.0l, (long long)log2(maxBitSize) + 1) / 8.0l);
 
 	Utils::Resize(first, newSize);
@@ -64,7 +39,7 @@ inline static std::size_t CalcMinByteSize(const std::uint64_t& n) {
 /// <returns>The minimum byte size for the specified big integer</returns>
 inline static std::size_t CalcMinByteSize(const bi_int& n) {
 
-	std::size_t bits = CountSignificantBits(n.Buffer, n.Size);
+	std::size_t bits = Utils::CountSignificantBits(n.Buffer, n.Size);
 
 	return bits == 0 ? 1 : (std::size_t)std::ceill((long double)bits / 8.0l);
 }
@@ -143,8 +118,8 @@ inline static bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 	Utils::Negate(w);
 	Utils::Add(z, w);
 
-	const long double addSizeU = std::ceill(((long double)size * 8.0l - (long double)(u.Size * 8 - CountSignificantBits(u.Buffer, u.Size))) / 8.0l) + 1;
-	const long double addSizeZ = std::ceill(((long double)(size / 2) * 8.0l - (long double)(z.Size * 8 - CountSignificantBits(z.Buffer, z.Size))) / 8.0l) + 1;
+	const long double addSizeU = std::ceill(((long double)size * 8.0l - (long double)(u.Size * 8 - Utils::CountSignificantBits(u.Buffer, u.Size))) / 8.0l) + 1;
+	const long double addSizeZ = std::ceill(((long double)(size / 2) * 8.0l - (long double)(z.Size * 8 - Utils::CountSignificantBits(z.Buffer, z.Size))) / 8.0l) + 1;
 
 	// P = U * 2^n + Z * 2^n/2 + V
 	Utils::Resize(u, u.Size + std::size_t((long double)u.Size + addSizeU), false);
@@ -265,6 +240,25 @@ namespace Utils {
 	bool IsNegative(const bi_int& data) {
 
 		return data.Buffer != nullptr && data.Buffer[data.Size - 1] == BI_MINUS_SIGN;
+	}
+
+	std::size_t CountSignificantBits(const bi_type* const n, std::size_t size) {
+
+		std::size_t bitSize = 0;
+		const bi_type& sign = n[size - 1];
+
+		for (std::size_t i = 1; i < size; i++) {
+
+			if (n[size - 1 - i] != sign) {
+
+				std::size_t min = n[size - 1 - i];
+				bitSize = (size - 1 - i) * 8;
+				bitSize += (std::size_t)log2(min) + 1;
+				break;
+			}
+		}
+
+		return bitSize;
 	}
 
 	// --- Mathematical operations ---

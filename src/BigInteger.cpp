@@ -421,9 +421,49 @@ namespace bi {
 
 	// Boolean
 
+	Integer::operator bool() {
+
+		std::size_t validBytes = (std::size_t)std::ceill((long double)CountSignificantBits(m_Data.Buffer, m_Data.Size) / 8.0);
+
+		if (m_Data.Buffer != nullptr)
+			for (std::size_t i = 0; i < validBytes; i++)
+				if (m_Data.Buffer[i] != 0)
+					return true;
+
+		return false;
+	}
+
+	bool Integer::operator==(std::int64_t n) {
+
+		Integer new_int(n);
+
+		return Compare(this->m_Data, new_int.m_Data) == 0;
+	}
+
+	bool Integer::operator==(const std::string& str) {
+
+		Integer new_int(str);
+
+		return Compare(this->m_Data, new_int.m_Data) == 0;
+	}
+
 	bool Integer::operator==(const Integer& other) {
 
 		return Compare(this->m_Data, other.m_Data) == 0;
+	}
+
+	bool Integer::operator!=(std::int64_t n) {
+
+		Integer new_int(n);
+
+		return Compare(this->m_Data, new_int.m_Data) != 0;
+	}
+
+	bool Integer::operator!=(const std::string& str) {
+
+		Integer new_int(str);
+
+		return Compare(this->m_Data, new_int.m_Data) != 0;
 	}
 
 	bool Integer::operator!=(const Integer& other) {
@@ -431,9 +471,37 @@ namespace bi {
 		return Compare(this->m_Data, other.m_Data) != 0;
 	}
 
+	bool Integer::operator>(std::int64_t n) {
+
+		Integer new_int(n);
+
+		return Compare(this->m_Data, new_int.m_Data) > 0;
+	}
+
+	bool Integer::operator>(const std::string& str) {
+
+		Integer new_int(str);
+
+		return Compare(this->m_Data, new_int.m_Data) > 0;
+	}
+
 	bool Integer::operator>(const Integer& other) {
 
 		return Compare(this->m_Data, other.m_Data) > 0;
+	}
+
+	bool Integer::operator<(std::int64_t n) {
+
+		Integer new_int(n);
+
+		return Compare(this->m_Data, new_int.m_Data) < 0;
+	}
+
+	bool Integer::operator<(const std::string& str) {
+
+		Integer new_int(str);
+
+		return Compare(this->m_Data, new_int.m_Data) < 0;
 	}
 
 	bool Integer::operator<(const Integer& other) {
@@ -441,9 +509,37 @@ namespace bi {
 		return Compare(this->m_Data, other.m_Data) < 0;
 	}
 
+	bool Integer::operator>=(std::int64_t n) {
+
+		Integer new_int(n);
+
+		return Compare(this->m_Data, new_int.m_Data) > 0 || Compare(this->m_Data, new_int.m_Data) == 0;
+	}
+
+	bool Integer::operator>=(const std::string& str) {
+
+		Integer new_int(str);
+
+		return Compare(this->m_Data, new_int.m_Data) > 0 || Compare(this->m_Data, new_int.m_Data) == 0;
+	}
+
 	bool Integer::operator>=(const Integer& other) {
 
 		return Compare(this->m_Data, other.m_Data) > 0 || Compare(this->m_Data, other.m_Data) == 0;
+	}
+
+	bool Integer::operator<=(std::int64_t n) {
+
+		Integer new_int(n);
+
+		return Compare(this->m_Data, new_int.m_Data) < 0 || Compare(this->m_Data, new_int.m_Data) == 0;
+	}
+
+	bool Integer::operator<=(const std::string& str) {
+
+		Integer new_int(str);
+
+		return Compare(this->m_Data, new_int.m_Data) < 0 || Compare(this->m_Data, new_int.m_Data) == 0;
 	}
 
 	bool Integer::operator<=(const Integer& other) {
