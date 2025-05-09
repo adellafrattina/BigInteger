@@ -2,25 +2,173 @@
 
 #include "Utils.hpp"
 
+#undef BI_SIGN
+#define BI_SIGN(x) x.Buffer[x.Size - 1]
+
 /// <summary>
-/// Sums two qwords and stores the value in the first parameter. It returns whether there was overflow or not
+/// Counts the number of bits that are not considered padding
 /// </summary>
-/// <param name="first">The first addend</param>
-/// <param name="second">The second addend</param>
-/// <param name="carry">The previous sum's carry</param>
-/// <returns>True if there was overflow, false if not</returns>
-static inline bool SumOverflow(std::uint64_t& first, const std::uint64_t second, const std::uint64_t carry = 0) {
+/// <param name="n">The raw big integer</param>
+/// <param name="size">The raw big integer size</param>
+/// <returns>The number of bits that have an impact on the number representation</returns>
+inline static std::size_t CountSignificantBits(const bi_type* const n, std::size_t size) {
 
-	// Sum
-	std::uint64_t value = first;
-	first += second;
-	const bool overflow = first < value;
+	std::size_t bitSize = 0;
+	if (n[size - 1] == BI_PLUS_SIGN) {
 
-	// Carry
-	value = first;
-	first += carry;
+		for (std::size_t i = 0; i < size; i++) {
 
-	return overflow || first < value;
+			if (n[size - 1 - i] != 0) {
+
+				std::size_t min = n[size - 1 - i];
+				bitSize = (size - 1 - i) * 8;
+				bitSize += (std::size_t)log2(min) + 1;
+				break;
+			}
+		}
+	}
+
+	return bitSize;
+}
+
+/// <summary>
+/// Resizes the two given big integers to add padding bits to make the size a power of 2. Mainly used in the Karatsuba algorithm implementation
+/// </summary>
+/// <param name="first">The first big integer</param>
+/// <param name="second">The second big integer</param>
+/// <returns>The new size of both numbers</returns>
+inline static std::size_t MakeSameSizeAsPowerOf2(bi_int& first, bi_int& second) {
+
+	const std::size_t maxBitSize = std::max(CountSignificantBits(first.Buffer, first.Size), CountSignificantBits(second.Buffer, second.Size));
+	const std::size_t newSize = (std::size_t)std::ceill(pow(2.0l, (long long)log2(maxBitSize) + 1) / 8.0l);
+
+	Utils::Resize(first, newSize);
+	Utils::Resize(second, newSize);
+
+	return newSize;
+}
+
+/// <summary>
+/// Calculates the minimum byte size for an integer
+/// </summary>
+/// <param name="n">The desired integer</param>
+/// <returns>The minimum byte size for the specified integer</returns>
+inline static std::size_t CalcMinByteSize(const std::uint64_t& n) {
+
+	return n == 0 ? 1 : (std::size_t)std::ceill((long double)((std::size_t)log2l((long double)n) + 1) / 8.0l);
+}
+
+/// <summary>
+/// Calculates the minimum byte size for a big integer
+/// </summary>
+/// <param name="n">The desired big integer</param>
+/// <returns>The minimum byte size for the specified big integer</returns>
+inline static std::size_t CalcMinByteSize(const bi_int& n) {
+
+	std::size_t bits = CountSignificantBits(n.Buffer, n.Size);
+
+	return bits == 0 ? 1 : (std::size_t)std::ceill((long double)bits / 8.0l);
+}
+
+/// <summary>
+/// Executes the Karatsuba algorithm to multiply two big integers of the same size
+/// </summary>
+/// <param name="x">The first factor (must be positive and without the sign byte)</param>
+/// <param name="y">The second factor (must be positive and without the sign byte)</param>
+/// <param name="size">Both factors size</param>
+/// <returns>The product between the first and the second factor</returns>
+inline static bi_int Karatsuba(const bi_type* const x, const bi_type* const y, std::size_t size) {
+
+	if (size <= sizeof(std::uint32_t)) {
+
+		const std::uint64_t product =
+			Utils::BytesToQWORD(x, size) *
+			Utils::BytesToQWORD(y, size);
+		bi_int p;
+		Utils::Resize(p, CalcMinByteSize(product) + 1, false);
+		std::uint8_t* buffer = (std::uint8_t*)p.Buffer;
+		memcpy_s(buffer, p.Size * sizeof(bi_type), &product, CalcMinByteSize(product));
+
+		return p;
+	}
+
+	// X1, X2
+	bi_int x1, x2;
+	Utils::Resize(x1, size / 2 + 1, false);
+	Utils::Resize(x2, size / 2 + 1, false);
+	Utils::Copy(x1, { (bi_type*)x + size / 2, size / 2 });
+	Utils::Copy(x2, { (bi_type*)x, size / 2 });
+
+	// Y1, Y2
+	bi_int y1, y2;
+	Utils::Resize(y1, size / 2 + 1, false);
+	Utils::Resize(y2, size / 2 + 1, false);
+	Utils::Copy(y1, { (bi_type*)y + size / 2, size / 2 });
+	Utils::Copy(y2, { (bi_type*)y, size / 2 });
+
+	// U
+	bi_int u = Karatsuba(x1.Buffer, y1.Buffer, (x1.Size - 1));
+
+	// V
+	bi_int v = Karatsuba(x2.Buffer, y2.Buffer, (x2.Size - 1));
+
+	// X1 - X2
+	Utils::Negate(x2);
+	Utils::Add(x1, x2);
+
+	// Y1 - Y2
+	Utils::Negate(y2);
+	Utils::Add(y1, y2);
+
+	// Save the original sign
+	const bi_type x1Sign = BI_SIGN(x1);
+	const bi_type y1Sign = BI_SIGN(y1);
+
+	// Make the results positive
+	Utils::Abs(x1);
+	Utils::Abs(y1);
+
+	// W = (X1 - X2) * (Y1 - Y2)
+	bi_int w = Karatsuba(x1.Buffer, y1.Buffer, size / 2);
+
+	// Add the sign
+	if (x1Sign != y1Sign)
+		Utils::Negate(w);
+
+	bi_int z;
+	Utils::Resize(z, u.Size, false);
+	Utils::Copy(z, u);
+
+	// Z = U + V - W
+	Utils::Add(z, v);
+	Utils::Negate(w);
+	Utils::Add(z, w);
+
+	std::uint8_t* a = u.Buffer;
+	std::size_t u_size = u.Size;
+
+	const long double addSizeU = std::ceill(((long double)size * 8.0l - (long double)(u.Size * 8 - CountSignificantBits(u.Buffer, u.Size))) / 8.0l) + 1;
+	const long double addSizeZ = std::ceill(((long double)(size / 2) * 8.0l - (long double)(z.Size * 8 - CountSignificantBits(z.Buffer, z.Size))) / 8.0l) + 1;
+
+	// P = U * 2^n + Z * 2^n/2 + V
+	Utils::Resize(u, u.Size + std::size_t((long double)u.Size + addSizeU), false);
+	Utils::Resize(z, z.Size + std::size_t((long double)z.Size + addSizeZ), false);
+	Utils::ShiftLeft(u.Buffer, u.Size * sizeof(bi_type), size * 8);
+	Utils::ShiftLeft(z.Buffer, z.Size * sizeof(bi_type), size * 8 / 2);
+
+	Utils::Add(u, z);
+	Utils::Add(u, v);
+
+	// Free memory
+	Utils::Clear(x1);
+	Utils::Clear(x2);
+	Utils::Clear(y1);
+	Utils::Clear(y2);
+	Utils::Clear(v);
+	Utils::Clear(w);
+	Utils::Clear(z);
+
+	return u;
 }
 
 namespace Utils {
@@ -39,26 +187,71 @@ namespace Utils {
 		putchar('\n');
 	}
 
-	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size, bool ext_sign) {
+	void Resize(bi_int& data, std::size_t new_size, bool ext_sign) {
 
-		PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data, old_size, new_size);
+		const std::size_t& old_size = data.Size;
+		if (data.Buffer == nullptr) {
 
-		bi_int* tmp = data;
-		data = new bi_int[new_size];
-		memset(data, 0, new_size * sizeof(bi_int)); // For some reason, this must not be touched
+			PRINT("Resize called (data: nullptr, new_size: %zu)", new_size);
+		}
+
+		else {
+
+			PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data.Buffer, old_size, new_size);
+		}
+
+		bi_type* tmp = data.Buffer;
+		data.Buffer = new bi_type[new_size];
+		memset(data.Buffer, 0, new_size * sizeof(bi_type)); // For some reason, this must not be touched
 
 		if (tmp != nullptr) {
 
 			// Copy the old data
-			memmove_s(data, new_size * sizeof(bi_int), tmp, old_size * sizeof(bi_int));
+			memmove_s(data.Buffer, new_size * sizeof(bi_type), tmp, old_size > new_size ? new_size : old_size * sizeof(bi_type));
 
 			// Fill the rest of the new buffer data with the old data sign
 			if (ext_sign)
 				for (std::size_t i = old_size; i < new_size; i++)
-					data[i] = tmp[old_size - 1];
+					data.Buffer[i] = tmp[old_size - 1];
 
 			delete[] tmp;
 		}
+
+		data.Size = new_size;
+	}
+
+	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest) {
+
+		memcpy_s(dest.Buffer + offset_dest, dest.Size * sizeof(bi_type), src.Buffer, (src.Size) * sizeof(bi_type));
+	}
+
+	void Clear(bi_int& data) {
+
+		if (data.Buffer != nullptr) {
+
+			PRINT("Clear called (data: %p, size: %zu)", data.Buffer, data.Size);
+			delete[] data.Buffer;
+		}
+
+		data.Buffer = nullptr;
+		data.Size = 0;
+	}
+
+	void ShrinkToFit(bi_int& data) {
+
+		const bi_type sign = BI_SIGN(data);
+
+		std::size_t size = 0;
+		for (std::size_t i = 0; i < data.Size; i++) {
+
+			if (data.Buffer[data.Size - i - 1] != sign) {
+
+				size = data.Size - i + 1;
+				break;
+			}
+		}
+
+		Resize(data, size, false);
 	}
 
 	std::uint64_t BytesToQWORD(const void* data, std::size_t size_in_bytes) {
@@ -66,39 +259,44 @@ namespace Utils {
 		const std::uint8_t* buffer = (std::uint8_t*)data;
 		std::uint64_t qword = 0;
 
-		for (std::size_t i = 0; i < size_in_bytes - 1; i++)
-			qword |= static_cast<std::uint64_t>(buffer[i] << (i * 8));
+		size_in_bytes = std::min(size_in_bytes, (std::size_t)8);
+		for (std::size_t i = 0; i < size_in_bytes; i++)
+			qword |= static_cast<std::uint64_t>(buffer[i]) << (i * 8);
 
 		return qword;
 	}
 
-	bool IsNegative(const bi_int* const data, std::size_t size) {
+	bool IsNegative(const bi_int& data) {
 
-		return data != nullptr && data[size - 1] == BI_MAX_INT;
+		return data.Buffer != nullptr && data.Buffer[data.Size - 1] == BI_MINUS_SIGN;
 	}
 
 	// --- Mathematical operations ---
 
-	std::size_t Negate(bi_int*& data, std::size_t size) {
+	void Negate(bi_int& data) {
 
-		Not(data, size * sizeof(bi_int));
-		size = Increment(data, size);
-
-		return size;
+		Not(data.Buffer, data.Size * sizeof(bi_type));
+		Increment(data);
 	}
 
-	std::size_t Increment(bi_int*& data, std::size_t size) {
+	void Abs(bi_int& data) {
 
-		bool sameSign = data[size - 1] == BI_PLUS_SIGN;
+		if (IsNegative(data))
+			Negate(data);
+	}
+
+	void Increment(bi_int& data) {
+
+		const bool sameSign = data.Buffer[data.Size - 1] == BI_PLUS_SIGN;
 
 		std::uint8_t carry = 1;
 		std::size_t i = 0;
-		while (i < size && carry != 0) {
+		while (i < data.Size && carry != 0) {
 
 			carry = 0;
-			bi_int value = data[i];
-			data[i] = data[i] + 1;
-			if (data[i] <= value) {
+			bi_type value = data.Buffer[i];
+			data.Buffer[i]++;
+			if (data.Buffer[i] <= value) {
 
 				carry = 1;
 				i++;
@@ -107,29 +305,27 @@ namespace Utils {
 
 		if (sameSign) {
 
-			if (data[size - 1] != 0) {
+			if (data.Buffer[data.Size - 1] != 0) {
 
-				Resize(data, size, size + 1);
-				data[size] = 0;
-				size++;
+				Resize(data, data.Size, data.Size + 1);
+				data.Buffer[data.Size] = 0;
+				data.Size++;
 			}
 		}
-
-		return size;
 	}
 
-	std::size_t Decrement(bi_int*& data, std::size_t size) {
+	void Decrement(bi_int& data) {
 
-		bool sameSign = data[size - 1] == BI_MINUS_SIGN;
+		const bool sameSign = data.Buffer[data.Size - 1] == BI_MINUS_SIGN;
 
 		std::uint8_t carry = 1;
 		std::size_t i = 0;
-		while (i < size && carry != 0) {
+		while (i < data.Size && carry != 0) {
 
 			carry = 0;
-			bi_int value = data[i];
-			data[i] = data[i] - 1;
-			if (data[i] >= value) {
+			bi_type value = data.Buffer[i];
+			data.Buffer[i]--;
+			if (data.Buffer[i] >= value) {
 
 				carry = 1;
 				i++;
@@ -138,83 +334,59 @@ namespace Utils {
 
 		if (sameSign) {
 
-			if (data[size - 1] != BI_MINUS_SIGN) {
+			if (data.Buffer[data.Size - 1] != BI_MINUS_SIGN) {
 
-				Resize(data, size, size + 1);
-				data[size] = BI_MINUS_SIGN;
-				size++;
+				Resize(data, data.Size + 1);
+				data.Buffer[data.Size] = BI_MINUS_SIGN;
+				data.Size++;
 			}
 		}
-
-		return size;
 	}
 
-	std::size_t Add(bi_int*& data_dest, std::size_t size_dest, const bi_int* const data_to_sum, std::size_t size_to_sum) {
+	void Add(bi_int& first, const bi_int& second) {
 
 		// Check if the numbers have the same sign
-		const bool sameSign = data_dest[size_dest - 1] == data_to_sum[size_to_sum - 1];
+		const bool sameSign = BI_SIGN(first) == BI_SIGN(second);
 
 		// First addend sign
-		const bi_int sign1 = data_dest[size_dest - 1];
+		const bi_type sign1 = BI_SIGN(first);
 
 		// Second addend sign
-		const bi_int sign2 = data_to_sum[size_to_sum - 1];
+		const bi_type sign2 = BI_SIGN(second);
 
 		// Check which number is the biggest
-		std::size_t sizeInBytes;
-		if (size_dest > size_to_sum) {
+		std::size_t size;
+		if (first.Size > second.Size) {
 
-			sizeInBytes = size_dest;
+			size = first.Size;
 		}
 
-		else if (size_dest < size_to_sum) {
+		else if (first.Size < second.Size) {
 
-			sizeInBytes = size_to_sum;
-			Resize(data_dest, size_dest, sizeInBytes);
+			size = second.Size;
+			Resize(first, size);
 		}
 
 		else {
 
-			sizeInBytes = size_dest;
+			size = first.Size;
 		}
 
-		// Sum the numbers qword by qword (TODO: add multithreading)
-
-		// Source and destination buffer
-		std::uint64_t* buffer1 = (std::uint64_t*)data_dest;
-		const std::size_t size1 = sizeInBytes / sizeof(std::uint64_t);
-
-		// The qword in the case the second addend is smaller than 8 bytes
-		const std::uint64_t qword = size_to_sum / sizeof(std::uint64_t) ? 0 : BytesToQWORD(data_to_sum, size_to_sum * sizeof(bi_int));
-
-		// Source buffer for the second addend
-		const std::uint64_t* const buffer2 = size_to_sum / sizeof(std::uint64_t) ? (const std::uint64_t* const)data_to_sum : &qword;
-		const std::size_t size2 = size_to_sum / sizeof(std::uint64_t) ? size_to_sum / sizeof(std::uint64_t) : 1;
-
-		// The second addend sign as 64 bit
-		const std::uint64_t sign = sign2 ? std::numeric_limits<std::uint64_t>::max() : 0;
+		// Sum the numbers byte by byte (TODO: group in QWORDs and add multithreading)
 
 		std::size_t i = 0;
 		std::uint8_t carry = 0;
-		while (i < size1) {
+		while (i < size) {
 
-			carry = SumOverflow(buffer1[i], i >= size2 ? sign : buffer2[i], carry);
-			i++;
-		}
+			bi_type toSum = i >= second.Size ? sign2 : second.Buffer[i];
 
-		// Sum the remaining bytes
-		i = i * sizeof(std::uint64_t);
-		while (i < sizeInBytes) {
+			bi_type value = first.Buffer[i];
+			first.Buffer[i] = first.Buffer[i] + toSum;
+			bool overflow = first.Buffer[i] < value;
 
-			bi_int toSum = i >= size_to_sum ? sign2 : data_to_sum[i];
-
-			bi_int value = data_dest[i];
-			data_dest[i] += toSum;
-			const bool overflow = data_dest[i] < value;
-
-			value = data_dest[i];
-			data_dest[i] += carry;
-			carry = overflow || data_dest[i] < value ? 1 : 0;
+			value = first.Buffer[i];
+			first.Buffer[i] += carry;
+			carry = overflow || first.Buffer[i] < value ? 1 : 0;
 
 			i++;
 		}
@@ -226,16 +398,45 @@ namespace Utils {
 		if (carry && sameSign) {
 
 			// ... and the sum result has a different sign from the previous one...
-			if (data_dest[sizeInBytes - 1] != sign1) {
+			if (first.Buffer[size - 1] != sign1) {
 
 				// ... then resize the destination buffer and add the sign at the end
-				Resize(data_dest, sizeInBytes, sizeInBytes + 1, false);
-				data_dest[sizeInBytes] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
-				sizeInBytes++;
+				Resize(first, size + 1, false);
+				first.Buffer[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+				size++;
 			}
 		}
+	}
 
-		return sizeInBytes;
+	void Mult(bi_int& first, const bi_int& second) {
+
+		// First factor sign
+		const bi_type sign1 = BI_SIGN(first);
+
+		// Second factor sign
+		const bi_type sign2 = BI_SIGN(second);
+
+		bi_int x;
+		Utils::Resize(x, first.Size, false);
+		Utils::Copy(x, first);
+
+		bi_int y;
+		Utils::Resize(y, second.Size, false);
+		Utils::Copy(y, second);
+
+		Abs(x);
+		Abs(y);
+
+		std::size_t size = MakeSameSizeAsPowerOf2(x, y);
+
+		Utils::Clear(first);
+		first = Karatsuba(x.Buffer, y.Buffer, size);
+
+		// Add the sign
+		if (sign1 != sign2)
+			Utils::Negate(first);
+
+		ShrinkToFit(first);
 	}
 
 	// --- Bitwise operations ---
@@ -260,30 +461,21 @@ namespace Utils {
 		std::uint8_t* buffer = (std::uint8_t*)data;
 		std::size_t offset = shift_amount / 8;
 		std::uint8_t rest = (std::uint8_t)(shift_amount % 8);
-		memmove_s(buffer, size_in_bytes, buffer + offset, size_in_bytes - offset);
-		memset(buffer + size_in_bytes - offset, 0, offset);
+		memmove_s(buffer + offset, size_in_bytes, buffer, size_in_bytes - offset);
+		memset(buffer, 0, offset);
 
 		// Shift the last 'rest' bits to the left
 
 		std::uint8_t* byte;
-		for (byte = (std::uint8_t*)data; size_in_bytes--; byte++) {
+		for (byte = size_in_bytes - 1 + (std::uint8_t*)data; size_in_bytes--; byte--) {
 
-			std::uint8_t bit = 0;
+			std::uint8_t bits = 0;
 			if (size_in_bytes)
-				bit = byte[1] & (0xFF << (CHAR_BIT - rest));
+				bits = byte[-1] & (0xFF << (CHAR_BIT - rest));
 
 			*byte <<= rest;
-			*byte |= (bit >> (CHAR_BIT - rest));
+			*byte |= (bits >> (CHAR_BIT - rest));
 		}
-
-		//std::uint8_t bits1 = 0, bits2 = 0;
-		//for (std::size_t i = 0; i < buffer_size - offset; i++) {
-
-		//	bits2 = buffer[buffer_size - offset - i - 1] & (std::uint8_t)((std::uint8_t)0b11111111 << (std::uint8_t)(8 - rest));
-		//	buffer[buffer_size - offset - i - 1] <<= rest;
-		//	buffer[buffer_size - offset - i - 1] |= (bits1 >> (8 - rest));
-		//	bits1 = bits2;
-		//}
 	}
 
 	void ShiftRight(void* data, std::size_t size_in_bytes, std::size_t shift_amount) {
@@ -298,33 +490,22 @@ namespace Utils {
 		std::uint8_t* buffer = (std::uint8_t*)data;
 		std::size_t offset = shift_amount / 8;
 		std::uint8_t rest = (std::uint8_t)(shift_amount % 8);
-		memmove_s(buffer + offset, size_in_bytes, buffer, size_in_bytes - offset);
-		memset(buffer, 0, offset);
-
-		// Shift the last 'rest' bits to the right
+		memmove_s(buffer, size_in_bytes, buffer + offset, size_in_bytes - offset);
+		memset(buffer + size_in_bytes - offset, 0, offset);
 
 		std::uint8_t* byte;
-		for (byte = size_in_bytes - 1 + (std::uint8_t*)data; size_in_bytes--; byte--) {
+		for (byte = (std::uint8_t*)data; size_in_bytes--; byte++) {
 
-			std::uint8_t bit = 0;
+			std::uint8_t bits = 0;
 			if (size_in_bytes)
-				bit = byte[-1] & (0xFF >> (CHAR_BIT - rest));
+				bits = byte[1] & (0xFF >> (CHAR_BIT - rest));
 
 			*byte >>= rest;
-			*byte |= (bit << (CHAR_BIT - rest));
+			*byte |= (bits << (CHAR_BIT - rest));
 		}
-
-		//std::uint8_t bits1 = 0, bits2 = 0;
-		//for (std::size_t i = 0; i < buffer_size - offset; i++) {
-
-		//	bits2 = buffer[buffer_size - offset - i - 1] & (std::uint8_t)((std::uint8_t)0b11111111 << (std::uint8_t)(8 - rest));
-		//	buffer[buffer_size - offset - i - 1] <<= rest;
-		//	buffer[buffer_size - offset - i - 1] |= (bits1 >> (8 - rest));
-		//	bits1 = bits2;
-		//}
 	}
 
-	void ShiftLeft1(void* data, std::size_t size_in_bytes) {
+	void ShiftLeft1BE(void* data, std::size_t size_in_bytes) {
 
 		std::uint8_t* byte;
 		for (byte = (std::uint8_t*)data; size_in_bytes--; byte++) {
@@ -338,7 +519,7 @@ namespace Utils {
 		}
 	}
 
-	void ShiftRight1(void* data, std::size_t size_in_bytes) {
+	void ShiftRight1BE(void* data, std::size_t size_in_bytes) {
 
 		std::uint8_t* byte;
 		for (byte = size_in_bytes - 1 + (std::uint8_t*)data; size_in_bytes--; byte--) {

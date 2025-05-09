@@ -26,7 +26,7 @@ int main() {
 		return 1;
 	}
 
-	bi::Integer n = n1 + n2;
+	bi::Integer n = n1 * n2;
 	std::cout << "Result: " << n << "\n";
 	std::cout << "Size in bytes: " << n.SizeInBytes() << "\n";
 }

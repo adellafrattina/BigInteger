@@ -6,7 +6,7 @@
 #include <limits>
 
 #undef BI_PRINT_DEBUG_INFO
-#define BI_PRINT_DEBUG_INFO
+//#define BI_PRINT_DEBUG_INFO
 
 #ifndef BI_STATIC
 	#ifdef _WIN32
@@ -34,8 +34,15 @@
 	#define PRINT(fmt, ...) printf(fmt, __VA_ARGS__); putchar('\n');
 #endif
 
-typedef std::uint8_t bi_int;
-#define BI_MAX_INT std::numeric_limits<bi_int>::max()
+typedef std::uint8_t bi_type;
+
+struct bi_int {
+
+	bi_type* Buffer = nullptr;
+	std::size_t Size = 0;
+};
+
+#define BI_MAX_INT std::numeric_limits<bi_type>::max()
 #define BI_PLUS_SIGN 0
 #define BI_MINUS_SIGN BI_MAX_INT
 
@@ -95,7 +102,14 @@ namespace bi {
 
 		// Star
 
+		Integer operator*(std::int64_t n);
+		Integer& operator*=(std::int64_t n);
+
+		Integer operator*(const std::string& str);
+		Integer& operator*=(const std::string& str);
+
 		Integer operator*(const Integer& other);
+		Integer& operator*=(const Integer& other);
 
 		// Backslash
 
@@ -119,9 +133,7 @@ namespace bi {
 
 		void Init(std::int64_t n);
 		bool Init(const std::string& str);
-		void Clear();
 
-		mutable bi_int* m_Data;
-		mutable std::size_t m_Size;
+		mutable bi_int m_Data; // Mutable key is temporary
 	};
 }

@@ -17,10 +17,29 @@ namespace Utils {
 	/// To make it work with 2's complement, this function can automatically extend the sign
 	/// </summary>
 	/// <param name="data">The array to resize</param>
-	/// <param name="old_size">The old size</param>
 	/// <param name="new_size">The new size</param>
 	/// <param name="ext_sign">If the number should be sign extended (true by default)</param>
-	void Resize(bi_int*& data, std::size_t old_size, std::size_t new_size, bool ext_sign = true);
+	void Resize(bi_int& data, std::size_t new_size, bool ext_sign = true);
+
+	/// <summary>
+	/// Copies the src big integer into the dest one
+	/// </summary>
+	/// <param name="dest">The destination</param>
+	/// <param name="src">The source</param>
+	/// <param name="offset_dest">The destination offset (zero by default)</param>
+	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest = 0);
+
+	/// <summary>
+	/// Clears the big integer
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Clear(bi_int& data);
+
+	/// <summary>
+	/// Removes unnecessary padding bytes
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void ShrinkToFit(bi_int& data);
 
 	/// <summary>
 	/// Converts the first 8 bytes of the given array into a qword (64 bit word)
@@ -34,9 +53,8 @@ namespace Utils {
 	/// Checks whether the specified number is negative or not
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
-	/// <param name="size">The big integer size</param>
 	/// <returns>True if the number is negative, false if not</returns>
-	bool IsNegative(const bi_int* const data, std::size_t size);
+	bool IsNegative(const bi_int& data);
 
 	// --- Mathematical operations ---
 
@@ -44,36 +62,41 @@ namespace Utils {
 	/// Negates the big integer. If the big integer was positive, it will became negative. If it was negative, it will become positive
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
-	/// <param name="size">The big integer size</param>
-	/// <returns>The new big integer size if the operation causes overflow</returns>
-	std::size_t Negate(bi_int*& data, std::size_t size);
+	void Negate(bi_int& data);
+
+	/// <summary>
+	/// Turns every number into a positive number
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Abs(bi_int& data);
 
 	/// <summary>
 	/// Increments the big integer by one. It could resize the array if overflow occurs
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
-	/// <param name="size">The big integer size</param>
-	/// <returns>The new big integer size if the increment causes overflow</returns>
-	std::size_t Increment(bi_int*& data, std::size_t size);
+	void Increment(bi_int& data);
 
 	/// <summary>
 	/// Decrements the big integer by one. It could resize the array if overflow occurs
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
-	/// <param name="size">The big integer size</param>
-	/// <returns>The new big integer size if the decrement causes overflow</returns>
-	std::size_t Decrement(bi_int*& data, std::size_t size);
+	void Decrement(bi_int& data);
 
 	/// <summary>
 	/// Sums the first big integer with the second one. The result is stored in the first one. The first array could be resized if
 	/// the second one is bigger or if overflow occurs
 	/// </summary>
-	/// <param name="data_dest">The first addend, where the result will be stored</param>
-	/// <param name="size_dest">The first addend size</param>
-	/// <param name="data_to_sum">The second addend</param>
-	/// <param name="size_to_sum">The second added size</param>
-	/// <returns>The new big integer size if the sum causes overflow</returns>
-	std::size_t Add(bi_int*& data_dest, std::size_t size_dest, const bi_int* const data_to_sum, std::size_t size_to_sum);
+	/// <param name="first">The first addend, where the result will be stored</param>
+	/// <param name="second">The second addend</param>
+	void Add(bi_int& first, const bi_int& second);
+
+	/// <summary>
+	/// Multiplies the first big integer with the second one. The result is stored in the first one. The first array could be resized if
+	/// the second one is bigger or if overflow occurs
+	/// </summary>
+	/// <param name="first">The first factor, where the result will be stored</param>
+	/// <param name="second">The second factor</param>
+	void Mult(bi_int& first, const bi_int& second);
 
 	// --- Bitwise operations ---
 
@@ -105,12 +128,14 @@ namespace Utils {
 	/// </summary>
 	/// <param name="data">The desired array</param>
 	/// <param name="size_in_bytes">The array size in bytes</param>
-	void ShiftLeft1(void* data, std::size_t size_in_bytes);
+	/// <exception cref="THIS MUST NOT BE USED WITH REGULAR BIG INTEGERS"></exception>
+	void ShiftLeft1BE(void* data, std::size_t size_in_bytes);
 
 	/// <summary>
 	/// Shifts all the bits to the right by one
 	/// </summary>
 	/// <param name="data">The desired array</param>
 	/// <param name="size_in_bytes">The array size in bytes</param>
-	void ShiftRight1(void* data, std::size_t size_in_bytes);
+	/// <exception cref="THIS MUST NOT BE USED WITH REGULAR BIG INTEGERS"></exception>
+	void ShiftRight1BE(void* data, std::size_t size_in_bytes);
 }
