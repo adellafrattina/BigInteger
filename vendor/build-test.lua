@@ -22,6 +22,15 @@ project "test"
 		"bi-core"
 	}
 
+	-- Windows
+	filter "system:macosx"
+		systemversion "latest"
+
+		externalincludedirs {
+
+			"../include"
+		}
+
 	-- Debug
 	filter "configurations:Debug*"
 		defines "BI_DEBUG"
