@@ -71,7 +71,27 @@ namespace Utils {
 	/// <returns>True if the number is negative, false if not</returns>
 	bool IsNegative(const bi_int& data);
 
+	/// <summary>
+	/// Counts the number of bits that are not considered padding
+	/// </summary>
+	/// <param name="n">The raw big integer</param>
+	/// <param name="size">The raw big integer size</param>
+	/// <returns>The number of bits that have an impact on the number representation</returns>
+	std::size_t CountSignificantBits(const bi_type* const n, std::size_t size);
+
 	// --- Mathematical operations ---
+
+	/// <summary>
+	/// Compares the two given big integers
+	/// </summary>
+	/// <param name="first">The first big integer</param>
+	/// <param name="second">The second big integer</param>
+	/// <returns>
+	/// A number greater than zero if the first number is bigger than the second one.
+	/// A number smaller than zero if the first number is smaller than the second one.
+	/// Zero if the two numbers are equal
+	/// </returns>
+	int Compare(const bi_int& first, const bi_int& second);
 
 	/// <summary>
 	/// Negates the big integer. If the big integer was positive, it will became negative. If it was negative, it will become positive

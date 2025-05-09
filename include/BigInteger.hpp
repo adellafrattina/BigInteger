@@ -119,11 +119,30 @@ namespace bi {
 
 		// Boolean
 
+		operator bool();
+
+		bool operator==(std::int64_t n);
+		bool operator==(const std::string& str);
 		bool operator==(const Integer& other);
+
+		bool operator!=(std::int64_t n);
+		bool operator!=(const std::string& str);
 		bool operator!=(const Integer& other);
+
+		bool operator>(std::int64_t n);
+		bool operator>(const std::string& str);
 		bool operator>(const Integer& other);
+
+		bool operator<(std::int64_t n);
+		bool operator<(const std::string& str);
 		bool operator<(const Integer& other);
+
+		bool operator>=(std::int64_t n);
+		bool operator>=(const std::string& str);
 		bool operator>=(const Integer& other);
+
+		bool operator<=(std::int64_t n);
+		bool operator<=(const std::string& str);
 		bool operator<=(const Integer& other);
 
 		// Stream
