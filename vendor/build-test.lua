@@ -22,7 +22,7 @@ project "test"
 		"bi-core"
 	}
 
-	-- Windows
+	-- MacOSX
 	filter "system:macosx"
 		systemversion "latest"
 
