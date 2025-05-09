@@ -144,9 +144,6 @@ inline static bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 	Utils::Negate(w);
 	Utils::Add(z, w);
 
-	std::uint8_t* a = u.Buffer;
-	std::size_t u_size = u.Size;
-
 	const long double addSizeU = std::ceill(((long double)size * 8.0l - (long double)(u.Size * 8 - CountSignificantBits(u.Buffer, u.Size))) / 8.0l) + 1;
 	const long double addSizeZ = std::ceill(((long double)(size / 2) * 8.0l - (long double)(z.Size * 8 - CountSignificantBits(z.Buffer, z.Size))) / 8.0l) + 1;
 
