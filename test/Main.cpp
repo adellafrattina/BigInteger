@@ -5,10 +5,10 @@
 int main() {
 
 	std::cout << "Type the number to select an operation:\n";
-	std::cout << " (1) +\n";
-	std::cout << " (2) -\n";
-	std::cout << " (3) x\n";
-	std::cout << " (4) compare\n";
+	std::cout << " 1. (+)\n";
+	std::cout << " 2. (-)\n";
+	std::cout << " 3. (x)\n";
+	std::cout << " 4. (compare)\n";
 
 	std::cout << ">";
 	int in;
