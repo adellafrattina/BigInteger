@@ -74,13 +74,13 @@ namespace bi {
 
 		Integer& operator+();
 
-		Integer operator+(std::int64_t n);
+		Integer operator+(std::int64_t n) const;
 		Integer& operator+=(std::int64_t n);
 
-		Integer operator+(const std::string& str);
+		Integer operator+(const std::string& str) const;
 		Integer& operator+=(const std::string& str);
 
-		Integer operator+(const Integer& other);
+		Integer operator+(const Integer& other) const;
 		Integer& operator+=(const Integer& other);
 
 		Integer operator++(int);
@@ -90,13 +90,13 @@ namespace bi {
 
 		Integer operator-();
 
-		Integer operator-(std::int64_t n);
+		Integer operator-(std::int64_t n) const;
 		Integer& operator-=(std::int64_t n);
 
-		Integer operator-(const std::string& str);
+		Integer operator-(const std::string& str) const;
 		Integer& operator-=(const std::string& str);
 
-		Integer operator-(const Integer& other);
+		Integer operator-(const Integer& other) const;
 		Integer& operator-=(const Integer& other);
 
 		Integer operator--(int);
@@ -104,40 +104,40 @@ namespace bi {
 
 		// Star
 
-		Integer operator*(std::int64_t n);
+		Integer operator*(std::int64_t n) const;
 		Integer& operator*=(std::int64_t n);
 
-		Integer operator*(const std::string& str);
+		Integer operator*(const std::string& str) const;
 		Integer& operator*=(const std::string& str);
 
-		Integer operator*(const Integer& other);
+		Integer operator*(const Integer& other) const;
 		Integer& operator*=(const Integer& other);
 
 		// Backslash
 
-		Integer operator/(const Integer& other);
+		Integer operator/(const Integer& other) const;
 
 		// Boolean
 
-		operator bool();
+		operator bool() const;
 
-		bool operator==(const std::string& str);
-		bool operator==(const Integer& other);
+		bool operator==(const std::string& str) const;
+		bool operator==(const Integer& other) const;
 
-		bool operator!=(const std::string& str);
-		bool operator!=(const Integer& other);
+		bool operator!=(const std::string& str) const;
+		bool operator!=(const Integer& other) const;
 
-		bool operator>(const std::string& str);
-		bool operator>(const Integer& other);
+		bool operator>(const std::string& str) const;
+		bool operator>(const Integer& other) const;
 
-		bool operator<(const std::string& str);
-		bool operator<(const Integer& other);
+		bool operator<(const std::string& str) const;
+		bool operator<(const Integer& other) const;
 
-		bool operator>=(const std::string& str);
-		bool operator>=(const Integer& other);
+		bool operator>=(const std::string& str) const;
+		bool operator>=(const Integer& other) const;
 
-		bool operator<=(const std::string& str);
-		bool operator<=(const Integer& other);
+		bool operator<=(const std::string& str) const;
+		bool operator<=(const Integer& other) const;
 
 		// Stream
 
