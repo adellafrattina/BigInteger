@@ -209,7 +209,7 @@ namespace bi {
 		return *this;
 	}
 
-	Integer Integer::operator+(std::int64_t n) {
+	Integer Integer::operator+(std::int64_t n) const {
 
 		Integer addend(n);
 		Integer new_int(*this);
@@ -226,7 +226,7 @@ namespace bi {
 		return *this;
 	}
 
-	Integer Integer::operator+(const std::string& str) {
+	Integer Integer::operator+(const std::string& str) const {
 
 		Integer addend(str);
 		Integer new_int(*this);
@@ -243,7 +243,7 @@ namespace bi {
 		return *this;
 	}
 
-	Integer Integer::operator+(const Integer& other) {
+	Integer Integer::operator+(const Integer& other) const {
 
 		Integer new_int(*this);
 		Add(new_int.m_Data, other.m_Data);
@@ -283,7 +283,7 @@ namespace bi {
 		return new_int;
 	}
 
-	Integer Integer::operator-(std::int64_t n) {
+	Integer Integer::operator-(std::int64_t n) const {
 
 		Integer subtracting(n);
 		Negate(subtracting.m_Data);
@@ -303,7 +303,7 @@ namespace bi {
 		return *this;
 	}
 
-	Integer Integer::operator-(const std::string& str) {
+	Integer Integer::operator-(const std::string& str) const {
 
 		Integer subtracting(str);
 		Negate(subtracting.m_Data);
@@ -323,7 +323,7 @@ namespace bi {
 		return *this;
 	}
 
-	Integer Integer::operator-(const Integer& other) {
+	Integer Integer::operator-(const Integer& other) const {
 
 		Integer subtracting(other);
 		Negate(subtracting.m_Data);
@@ -360,7 +360,7 @@ namespace bi {
 
 	// Star
 
-	Integer Integer::operator*(std::int64_t n) {
+	Integer Integer::operator*(std::int64_t n) const {
 
 		Integer factor(n);
 		Integer new_int(*this);
@@ -377,7 +377,7 @@ namespace bi {
 		return *this;
 	}
 
-	Integer Integer::operator*(const std::string& str) {
+	Integer Integer::operator*(const std::string& str) const {
 
 		Integer factor(str);
 		Integer new_int(*this);
@@ -394,7 +394,7 @@ namespace bi {
 		return *this;
 	}
 
-	Integer Integer::operator*(const Integer& other) {
+	Integer Integer::operator*(const Integer& other) const {
 
 		Integer new_int(*this);
 		Mult(new_int.m_Data, other.m_Data);
@@ -411,7 +411,7 @@ namespace bi {
 
 	// Backslash
 
-	Integer Integer::operator/(const Integer& other) {
+	Integer Integer::operator/(const Integer& other) const {
 
 		assert((void("Not implemented yet"), false));
 
@@ -420,7 +420,7 @@ namespace bi {
 
 	// Boolean
 
-	Integer::operator bool() {
+	Integer::operator bool() const {
 
 		std::size_t validBytes = (std::size_t)std::ceill((long double)CountSignificantBits(m_Data.Buffer, m_Data.Size) / 8.0);
 
@@ -432,74 +432,74 @@ namespace bi {
 		return false;
 	}
 
-	bool Integer::operator==(const std::string& str) {
+	bool Integer::operator==(const std::string& str) const {
 
 		Integer new_int(str);
 
 		return Compare(this->m_Data, new_int.m_Data) == 0;
 	}
 
-	bool Integer::operator==(const Integer& other) {
+	bool Integer::operator==(const Integer& other) const {
 
 		return Compare(this->m_Data, other.m_Data) == 0;
 	}
 
-	bool Integer::operator!=(const std::string& str) {
+	bool Integer::operator!=(const std::string& str) const {
 
 		Integer new_int(str);
 
 		return Compare(this->m_Data, new_int.m_Data) != 0;
 	}
 
-	bool Integer::operator!=(const Integer& other) {
+	bool Integer::operator!=(const Integer& other) const {
 
 		return Compare(this->m_Data, other.m_Data) != 0;
 	}
 
-	bool Integer::operator>(const std::string& str) {
+	bool Integer::operator>(const std::string& str) const {
 
 		Integer new_int(str);
 
 		return Compare(this->m_Data, new_int.m_Data) > 0;
 	}
 
-	bool Integer::operator>(const Integer& other) {
+	bool Integer::operator>(const Integer& other) const {
 
 		return Compare(this->m_Data, other.m_Data) > 0;
 	}
 
-	bool Integer::operator<(const std::string& str) {
+	bool Integer::operator<(const std::string& str) const {
 
 		Integer new_int(str);
 
 		return Compare(this->m_Data, new_int.m_Data) < 0;
 	}
 
-	bool Integer::operator<(const Integer& other) {
+	bool Integer::operator<(const Integer& other) const {
 
 		return Compare(this->m_Data, other.m_Data) < 0;
 	}
 
-	bool Integer::operator>=(const std::string& str) {
+	bool Integer::operator>=(const std::string& str) const {
 
 		Integer new_int(str);
 
 		return Compare(this->m_Data, new_int.m_Data) > 0 || Compare(this->m_Data, new_int.m_Data) == 0;
 	}
 
-	bool Integer::operator>=(const Integer& other) {
+	bool Integer::operator>=(const Integer& other) const {
 
 		return Compare(this->m_Data, other.m_Data) > 0 || Compare(this->m_Data, other.m_Data) == 0;
 	}
 
-	bool Integer::operator<=(const std::string& str) {
+	bool Integer::operator<=(const std::string& str) const {
 
 		Integer new_int(str);
 
 		return Compare(this->m_Data, new_int.m_Data) < 0 || Compare(this->m_Data, new_int.m_Data) == 0;
 	}
 
-	bool Integer::operator<=(const Integer& other) {
+	bool Integer::operator<=(const Integer& other) const {
 
 		return Compare(this->m_Data, other.m_Data) < 0 || Compare(this->m_Data, other.m_Data) == 0;
 	}
