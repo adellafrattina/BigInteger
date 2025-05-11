@@ -119,13 +119,13 @@ inline static bi_int Karatsuba(const bi_type* const x, const bi_type* const y, s
 	Utils::Add(z, w);
 
 	const long double addSizeU = std::ceill(((long double)size * 8.0l - (long double)(u.Size * 8 - Utils::CountSignificantBits(u.Buffer, u.Size))) / 8.0l) + 1;
-	const long double addSizeZ = std::ceill(((long double)(size / 2) * 8.0l - (long double)(z.Size * 8 - Utils::CountSignificantBits(z.Buffer, z.Size))) / 8.0l) + 1;
+	const long double addSizeZ = std::ceill(((long double)size * 4.0l - (long double)(z.Size * 8 - Utils::CountSignificantBits(z.Buffer, z.Size))) / 8.0l) + 1;
 
 	// P = U * 2^n + Z * 2^n/2 + V
-	Utils::Resize(u, u.Size + std::size_t((long double)u.Size + addSizeU), false);
-	Utils::Resize(z, z.Size + std::size_t((long double)z.Size + addSizeZ), false);
+	Utils::Resize(u, std::size_t(std::abs((long double)u.Size + addSizeU)), false);
+	Utils::Resize(z, std::size_t(std::abs((long double)z.Size + addSizeZ)), false);
 	Utils::ShiftLeft(u.Buffer, u.Size * sizeof(bi_type), size * 8);
-	Utils::ShiftLeft(z.Buffer, z.Size * sizeof(bi_type), size * 8 / 2);
+	Utils::ShiftLeft(z.Buffer, z.Size * sizeof(bi_type), size * 4);
 
 	Utils::Add(u, z);
 	Utils::Add(u, v);
@@ -212,7 +212,7 @@ namespace Utils {
 
 		const bi_type sign = BI_SIGN(data);
 
-		std::size_t size = 0;
+		std::size_t size = 2;
 		for (std::size_t i = 0; i < data.Size; i++) {
 
 			if (data.Buffer[data.Size - i - 1] != sign) {
@@ -312,7 +312,7 @@ namespace Utils {
 
 	void Increment(bi_int& data) {
 
-		const bool sameSign = data.Buffer[data.Size - 1] == BI_PLUS_SIGN;
+		const bool sameSign = BI_SIGN(data) == BI_PLUS_SIGN;
 
 		std::uint8_t carry = 1;
 		std::size_t i = 0;
@@ -330,18 +330,17 @@ namespace Utils {
 
 		if (sameSign) {
 
-			if (data.Buffer[data.Size - 1] != 0) {
+			if (BI_SIGN(data) != BI_PLUS_SIGN) {
 
-				Resize(data, data.Size, data.Size + 1);
-				data.Buffer[data.Size] = 0;
-				data.Size++;
+				Resize(data, data.Size + 1, false);
+				BI_SIGN(data) = BI_PLUS_SIGN;
 			}
 		}
 	}
 
 	void Decrement(bi_int& data) {
 
-		const bool sameSign = data.Buffer[data.Size - 1] == BI_MINUS_SIGN;
+		const bool sameSign = BI_SIGN(data) == BI_MINUS_SIGN;
 
 		std::uint8_t carry = 1;
 		std::size_t i = 0;
@@ -359,11 +358,10 @@ namespace Utils {
 
 		if (sameSign) {
 
-			if (data.Buffer[data.Size - 1] != BI_MINUS_SIGN) {
+			if (BI_SIGN(data) != BI_MINUS_SIGN) {
 
-				Resize(data, data.Size + 1);
-				data.Buffer[data.Size] = BI_MINUS_SIGN;
-				data.Size++;
+				Resize(data, data.Size + 1, false);
+				BI_SIGN(data) = BI_MINUS_SIGN;
 			}
 		}
 	}
@@ -411,7 +409,7 @@ namespace Utils {
 
 			value = first.Buffer[i];
 			first.Buffer[i] += carry;
-			carry = overflow || first.Buffer[i] < value ? 1 : 0;
+			carry = (overflow || first.Buffer[i] < value) ? 1 : 0;
 
 			i++;
 		}
@@ -419,8 +417,8 @@ namespace Utils {
 		// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
 		// The logic behind this code is the following:
 
-		// If the 2 big integers have the same sign at the beginning...
-		if (carry && sameSign) {
+		// If the 2 big integers had the same sign at the beginning...
+		if (sameSign) {
 
 			// ... and the sum result has a different sign from the previous one...
 			if (first.Buffer[size - 1] != sign1) {
@@ -460,8 +458,6 @@ namespace Utils {
 		// Add the sign
 		if (sign1 != sign2)
 			Utils::Negate(first);
-
-		ShrinkToFit(first);
 	}
 
 	// --- Bitwise operations ---
