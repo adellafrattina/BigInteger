@@ -42,7 +42,7 @@ namespace Utils {
 	/// <param name="dest">The destination</param>
 	/// <param name="src">The source</param>
 	/// <param name="offset_dest">The destination offset (zero by default)</param>
-	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest = 0);
+	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest = 0, bool ext_sign = true);
 
 	/// <summary>
 	/// Clears the big integer
@@ -63,6 +63,30 @@ namespace Utils {
 	/// <param name="size_in_bytes">The desired array size in bytes</param>
 	/// <returns>The qword</returns>
 	std::uint64_t BytesToQWORD(const void* data, std::size_t size_in_bytes);
+
+	/// <summary>
+	/// Converts the first 8 bytes of the given array into a signed qword (64 bit word)
+	/// </summary>
+	/// <param name="data">The desired array</param>
+	/// <param name="size_in_bytes">The desired array size in bytes</param>
+	/// <returns>The signed qword</returns>
+	std::int64_t BytesToSignedQWORD(const void* data, std::size_t size_in_bytes);
+
+	bi_int SignedQWORDToBytes(std::int64_t n);
+
+	/// <summary>
+	/// Gets the minimum number of bits needed to represent the desired number
+	/// </summary>
+	/// <param name="n">The desired number</param>
+	/// <returns>The minimum number of bits needed to represent the desired number</returns>
+	std::size_t GetBitSize(std::uint64_t n);
+
+	/// <summary>
+	/// Gets the minimum number of bytes needed to represent the desired number
+	/// </summary>
+	/// <param name="n">The desired number</param>
+	/// <returns>The minimum number of bytes needed to represent the desired number</returns>
+	std::size_t GetByteSize(std::uint64_t n);
 
 	/// <summary>
 	/// Checks whether the specified number is negative or not

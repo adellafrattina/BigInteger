@@ -191,9 +191,16 @@ namespace Utils {
 		data.Size = new_size;
 	}
 
-	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest) {
+	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest, bool ext_sign) {
 
-		bi_memcpy(dest.Buffer + offset_dest, dest.Size * sizeof(bi_type), src.Buffer, (src.Size) * sizeof(bi_type));
+		bi_memcpy(dest.Buffer + offset_dest, dest.Size * sizeof(bi_type), src.Buffer, src.Size * sizeof(bi_type));
+
+		if (ext_sign) {
+
+			const bi_type sign = dest.Buffer[src.Size - 1];
+			for (std::size_t i = src.Size; i < dest.Size; i++)
+				dest.Buffer[i] = sign;
+		}
 	}
 
 	void Clear(bi_int& data) {
@@ -235,6 +242,48 @@ namespace Utils {
 			qword |= static_cast<std::uint64_t>(buffer[i]) << (i * 8);
 
 		return qword;
+	}
+
+	std::int64_t BytesToSignedQWORD(const void* data, std::size_t size_in_bytes) {
+
+		const std::uint8_t* buffer = (std::uint8_t*)data;
+		std::int64_t qword = 0;
+
+		size_in_bytes = std::min(size_in_bytes, sizeof(std::uint64_t));
+		std::size_t i = 0;
+		for (; i < size_in_bytes; i++)
+			qword |= static_cast<std::int64_t>(buffer[i]) << (i * sizeof(std::uint64_t));
+
+		if (buffer[size_in_bytes - 1] == BI_MINUS_SIGN)
+			for (std::size_t j = i; j < sizeof(std::uint64_t); j++)
+				qword |= static_cast<std::int64_t>(0xFF) << (j * sizeof(std::uint64_t));
+
+		return qword;
+	}
+
+	bi_int SignedQWORDToBytes(std::int64_t n) {
+
+		bi_int integer;
+		integer.Size = sizeof(std::int64_t) / sizeof(bi_type) + 1;
+		integer.Buffer = new bi_type[integer.Size];
+		integer.Buffer[integer.Size - 1] = n < 0 ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+
+		std::uint8_t* buffer = (std::uint8_t*)integer.Buffer;
+		bi_memcpy(buffer, integer.Size * sizeof(bi_type), &n, sizeof(n));
+
+		return integer;
+	}
+
+	std::size_t GetBitSize(std::uint64_t n) {
+
+		return std::size_t(std::floor(log2(n))) + 1;
+	}
+
+	std::size_t GetByteSize(std::uint64_t n) {
+
+		const std::size_t bits = std::size_t(std::floor(log2(n))) + 1;
+
+		return bits / 8 + (std::size_t)std::ceil((long double)bits / 8.0);
 	}
 
 	bool IsNegative(const bi_int& data) {
@@ -368,65 +417,128 @@ namespace Utils {
 
 	void Add(bi_int& first, const bi_int& second) {
 
-		// Check if the numbers have the same sign
-		const bool sameSign = BI_SIGN(first) == BI_SIGN(second);
-
-		// First addend sign
-		const bi_type sign1 = BI_SIGN(first);
-
-		// Second addend sign
-		const bi_type sign2 = BI_SIGN(second);
-
-		// Check which number is the biggest
-		std::size_t size;
+		bi_int op1;
+		bi_int op2;
 		if (first.Size > second.Size) {
 
-			size = first.Size;
+			op1 = first;
+			Resize(op2, op1.Size, false);
+			Copy(op2, second);
 		}
 
 		else if (first.Size < second.Size) {
 
-			size = second.Size;
-			Resize(first, size);
+			op2 = second;
+			Resize(first, op2.Size);
+			op1 = first;
 		}
 
 		else {
 
-			size = first.Size;
+			op1 = first;
+			op2 = second;
 		}
 
-		// Sum the numbers byte by byte (TODO: group in QWORDs and add multithreading)
+		// Check if the numbers have the same sign
+		const bool sameSign = BI_SIGN(op1) == BI_SIGN(op2);
 
-		std::size_t i = 0;
-		std::uint8_t carry = 0;
-		while (i < size) {
+		// First addend sign
+		const bi_type sign1 = BI_SIGN(op1);
 
-			bi_type toSum = i >= second.Size ? sign2 : second.Buffer[i];
+		const std::size_t size = op1.Size;
 
-			bi_type value = first.Buffer[i];
-			first.Buffer[i] = first.Buffer[i] + toSum;
-			bool overflow = first.Buffer[i] < value;
+		if (size < sizeof(std::uint64_t)) {
 
-			value = first.Buffer[i];
-			first.Buffer[i] += carry;
-			carry = (overflow || first.Buffer[i] < value) ? 1 : 0;
+			std::int64_t r =
+				BytesToSignedQWORD(op1.Buffer, op1.Size * sizeof(bi_type)) +
+				BytesToSignedQWORD(op2.Buffer, op2.Size * sizeof(bi_type));
 
-			i++;
+			Clear(first);
+			Resize(first, GetByteSize(r) + 1, false);
+
+			memset(first.Buffer, 0, first.Size);
+			first.Buffer[first.Size - 1] = r < 0 ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+
+			std::uint8_t* buffer = (std::uint8_t*)first.Buffer;
+			bi_memcpy(buffer, first.Size * sizeof(bi_type), &r, GetByteSize(r));
 		}
 
-		// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
-		// The logic behind this code is the following:
+		else {
 
-		// If the 2 big integers had the same sign at the beginning...
-		if (sameSign) {
+			std::size_t i = size;
+			std::uint8_t carry = 0;
+			while (i > 0) {
 
-			// ... and the sum result has a different sign from the previous one...
-			if (first.Buffer[size - 1] != sign1) {
+				if (i / sizeof(std::uint64_t) > 0) {
 
-				// ... then resize the destination buffer and add the sign at the end
-				Resize(first, size + 1, false);
-				first.Buffer[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
-				size++;
+					std::uint64_t* const ptr1 = (std::uint64_t*)(op1.Buffer + size - i);
+					std::uint64_t* const ptr2 = (std::uint64_t*)(op2.Buffer + size - i);
+					std::uint64_t value = *ptr1;
+					*ptr1 += *ptr2;
+					bool overflow = *ptr1 < value;
+					value = *ptr1;
+					*ptr1 += carry;
+					carry = (overflow || *ptr1 < value) ? 1 : 0;
+
+					i -= sizeof(std::uint64_t);
+				}
+
+				else if (i / sizeof(std::uint32_t) > 0) {
+
+					std::uint32_t* const ptr1 = (std::uint32_t*)(op1.Buffer + size - i);
+					std::uint32_t* const ptr2 = (std::uint32_t*)(op2.Buffer + size - i);
+					std::uint32_t value = *ptr1;
+					*ptr1 += *ptr2;
+					bool overflow = *ptr1 < value;
+					value = *ptr1;
+					*ptr1 += carry;
+					carry = (overflow || *ptr1 < value) ? 1 : 0;
+
+					i -= sizeof(std::uint32_t);
+				}
+
+				else if (i / sizeof(std::uint16_t) > 0) {
+
+					std::uint16_t* const ptr1 = (std::uint16_t*)(op1.Buffer + size - i);
+					std::uint16_t* const ptr2 = (std::uint16_t*)(op2.Buffer + size - i);
+					std::uint16_t value = *ptr1;
+					*ptr1 += *ptr2;
+					bool overflow = *ptr1 < value;
+					value = *ptr1;
+					*ptr1 += carry;
+					carry = (overflow || *ptr1 < value) ? 1 : 0;
+
+					i -= sizeof(std::uint16_t);
+				}
+
+				else {
+
+					std::uint8_t* const ptr1 = (std::uint8_t*)(op1.Buffer + size - i);
+					std::uint8_t* const ptr2 = (std::uint8_t*)(op2.Buffer + size - i);
+					std::uint8_t value = *ptr1;
+					*ptr1 += *ptr2;
+					bool overflow = *ptr1 < value;
+					value = *ptr1;
+					*ptr1 += carry;
+					carry = (overflow || *ptr1 < value) ? 1 : 0;
+
+					i -= sizeof(std::uint8_t);
+				}
+			}
+
+			// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
+			// The logic behind this code is the following:
+
+			// If the 2 big integers had the same sign at the beginning...
+			if (sameSign) {
+
+				// ... and the sum result has a different sign from the previous one...
+				if (op1.Buffer[size - 1] != sign1) {
+
+					// ... then resize the destination buffer and add the sign at the end
+					Resize(op1, size + 1, false);
+					op1.Buffer[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+				}
 			}
 		}
 	}
