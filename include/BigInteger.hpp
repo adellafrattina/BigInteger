@@ -6,7 +6,7 @@
 #include <limits>
 
 #undef BI_PRINT_DEBUG_INFO
-//#define BI_PRINT_DEBUG_INFO
+#define BI_PRINT_DEBUG_INFO
 
 #ifndef BI_STATIC
 	#if defined(_WIN32)
@@ -32,123 +32,102 @@
 #if !defined(BI_PRINT_DEBUG_INFO)
 	#define PRINT(fmt, ...)
 #else
+
+	#include <cstdio>
+	#include <cstdarg>
+
+	static void g_biprintfln(const char* fmt, const char* time, const char* filename, int line, ...) {
+
+		va_list args;
+		va_start(args, line);
+		printf("[%s][%s:%d] ", time, filename, line);
+		vprintf(fmt, args);
+		va_end(args);
+		putchar('\n');
+	}
+
 	// To print debug information on standard output
-	#define PRINT(fmt, ...) printf(fmt, __VA_ARGS__); putchar('\n');
+	#define PRINT(fmt, ...) g_biprintfln(fmt, __TIME__, (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)), __LINE__, __VA_ARGS__)
 #endif
 
+// The big integer buffer's type
 typedef std::uint8_t bi_type;
 
-struct bi_int {
+// The operating system word
+typedef std::uint64_t WORD;
 
-	bi_type* Buffer = nullptr;
-	std::size_t Size = 0;
+// The big integer structure
+class bi_int {
+
+public:
+
+	bi_int();
+	bi_int(WORD sno);
+	bi_int(bi_type* buffer, std::size_t size);
+	bi_int(const bi_int& other);
+	bi_int& operator=(const bi_int& other);
+
+	// The big integer buffer
+	bi_type* Buffer;
+
+	// The buffer size
+	std::size_t Size;
+
+	/// <summary>
+	/// Gets the Small Number Optimization value in an endianness friendly way.
+	/// The value zero could also mean that the big integer value was allocated on the heap and not on the stack, so the SNO is invalid
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	/// <returns>The Small Number Optimization value</returns>
+	friend WORD GetSNO(const bi_int& data);
+
+	/// <summary>
+	/// Sets the Small Number Optimization value in an endianness friendly way.
+	/// The provided big integer should not have its buffer allocated on the heap.
+	/// To be sure, check that the big integer size is the size of a WORD over the size of bi_type
+	/// </summary>
+	/// <param name="data">The desired data</param>
+	/// <param name="sno">The desired value for the SNO</param>
+	friend void SetSNO(bi_int& data, WORD sno);
+
+private:
+
+	// Small Number Optimization
+	WORD m_SNO = 0;
 };
 
 #define BI_MAX_INT std::numeric_limits<bi_type>::max()
 #define BI_PLUS_SIGN 0
 #define BI_MINUS_SIGN BI_MAX_INT
 
-namespace bi {
+namespace big {
 
 	class BI_API Integer {
 
 	public:
 
-		Integer(std::int64_t n);
-		Integer(const std::string& str);
-		Integer(const Integer& other);
-		Integer(Integer&& other) noexcept;
+		Integer(WORD n, std::size_t size_in_bytes = 0);
+		Integer(const std::string& str, std::size_t size_in_bytes = 0);
+		Integer(const Integer& other, std::size_t size_in_bytes = 0);
 		Integer();
 		~Integer();
+
+		static Integer FromString(const std::string& n);
 
 		std::string ToString() const;
 		const void* Data();
 		std::size_t Size() const;
 		std::size_t SizeInBytes() const;
-
-		Integer& operator=(std::int64_t n);
-		Integer& operator=(const std::string& str);
-		Integer& operator=(const Integer& other);
-
-		// Plus
-
-		Integer& operator+();
-
-		Integer operator+(std::int64_t n) const;
-		Integer& operator+=(std::int64_t n);
-
-		Integer operator+(const std::string& str) const;
-		Integer& operator+=(const std::string& str);
-
-		Integer operator+(const Integer& other) const;
-		Integer& operator+=(const Integer& other);
-
-		Integer operator++(int);
-		Integer& operator++();
-
-		// Minus
-
-		Integer operator-();
-
-		Integer operator-(std::int64_t n) const;
-		Integer& operator-=(std::int64_t n);
-
-		Integer operator-(const std::string& str) const;
-		Integer& operator-=(const std::string& str);
-
-		Integer operator-(const Integer& other) const;
-		Integer& operator-=(const Integer& other);
-
-		Integer operator--(int);
-		Integer& operator--();
-
-		// Star
-
-		Integer operator*(std::int64_t n) const;
-		Integer& operator*=(std::int64_t n);
-
-		Integer operator*(const std::string& str) const;
-		Integer& operator*=(const std::string& str);
-
-		Integer operator*(const Integer& other) const;
-		Integer& operator*=(const Integer& other);
-
-		// Backslash
-
-		Integer operator/(const Integer& other) const;
-
-		// Boolean
-
-		operator bool() const;
-
-		bool operator==(const std::string& str) const;
-		bool operator==(const Integer& other) const;
-
-		bool operator!=(const std::string& str) const;
-		bool operator!=(const Integer& other) const;
-
-		bool operator>(const std::string& str) const;
-		bool operator>(const Integer& other) const;
-
-		bool operator<(const std::string& str) const;
-		bool operator<(const Integer& other) const;
-
-		bool operator>=(const std::string& str) const;
-		bool operator>=(const Integer& other) const;
-
-		bool operator<=(const std::string& str) const;
-		bool operator<=(const Integer& other) const;
+		void Resize(std::size_t size_in_bytes);
 
 		// Stream
 
-		friend BI_API std::istream& operator>>(std::istream& is, bi::Integer& n);
-		friend BI_API std::ostream& operator<<(std::ostream& os, const bi::Integer& n);
+		friend BI_API std::istream& operator>>(std::istream& is, big::Integer& n);
+		friend BI_API std::ostream& operator<<(std::ostream& os, const big::Integer& n);
 
 	private:
 
-		void Init(std::int64_t n);
-		bool Init(const std::string& str);
-
-		mutable bi_int m_Data; // Mutable key is temporary
+		// Normal big integer data structure
+		bi_int m_Data;
 	};
 }
