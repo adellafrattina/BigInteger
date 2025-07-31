@@ -97,7 +97,7 @@ namespace Utils {
 
 		if (ext_sign) {
 
-			const bi_type sign = dest.Buffer[src.Size - 1];
+			const bi_type sign = BI_SIGN(dest);
 			for (std::size_t i = src.Size; i < dest.Size; i++)
 				dest.Buffer[i] = sign;
 		}
