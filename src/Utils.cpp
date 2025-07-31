@@ -231,4 +231,132 @@ namespace Utils {
 
 		return bitSize == 0 ? 1 : bitSize;
 	}
+
+	// --- Bitwise functions ---
+
+	void Not(bi_int& data) {
+
+		for (std::size_t i = 0; i < data.Size; i++)
+			data.Buffer[i] = ~data.Buffer[i];
+	}
+
+	void And(bi_int& first, const bi_int& second) {
+
+		if (first.Size > second.Size) {
+
+			for (std::size_t i = 0; i < second.Size; i++)
+				first.Buffer[i] &= second.Buffer[i];
+
+			for (std::size_t i = second.Size; i < first.Size; i++)
+				first.Buffer[i] = 0;
+		}
+
+		else {
+
+			for (std::size_t i = 0; i < first.Size; i++)
+				first.Buffer[i] &= second.Buffer[i];
+		}
+	}
+
+	void Or(bi_int& first, const bi_int& second) {
+
+		if (first.Size > second.Size) {
+
+			for (std::size_t i = 0; i < second.Size; i++)
+				first.Buffer[i] |= second.Buffer[i];
+
+			for (std::size_t i = second.Size; i < first.Size; i++)
+				first.Buffer[i] = 0;
+		}
+
+		else {
+
+			for (std::size_t i = 0; i < first.Size; i++)
+				first.Buffer[i] |= second.Buffer[i];
+		}
+	}
+
+	void Xor(bi_int& first, const bi_int& second) {
+
+		if (first.Size > second.Size) {
+
+			for (std::size_t i = 0; i < second.Size; i++)
+				first.Buffer[i] ^= second.Buffer[i];
+
+			for (std::size_t i = second.Size; i < first.Size; i++)
+				first.Buffer[i] = 0;
+		}
+
+		else {
+
+			for (std::size_t i = 0; i < first.Size; i++)
+				first.Buffer[i] ^= second.Buffer[i];
+		}
+	}
+
+	void ShiftLeft(bi_int& data, std::size_t bit_shift_amount) {
+
+		std::size_t sizeInBytes = data.Size * sizeof(bi_type);
+		if (bit_shift_amount >= sizeInBytes * 8) {
+
+			memset(data.Buffer, 0, sizeInBytes);
+
+			return;
+		}
+
+		std::uint8_t* buffer = (std::uint8_t*)data.Buffer;
+		std::size_t offset = bit_shift_amount / 8;
+		std::uint8_t rest = (std::uint8_t)(bit_shift_amount % 8);
+		bi_memmove(buffer + offset, sizeInBytes, buffer, sizeInBytes - offset);
+		memset(buffer, 0, offset);
+
+		// Shift the last 'rest' bits to the left
+
+		std::uint8_t* byte;
+		for (byte = sizeInBytes - 1 + (std::uint8_t*)data.Buffer; sizeInBytes--; byte--) {
+
+			std::uint8_t bits = 0;
+			if (sizeInBytes)
+				bits = byte[-1] & (0xFF << (CHAR_BIT - rest));
+
+			*byte <<= rest;
+			*byte |= (bits >> (CHAR_BIT - rest));
+		}
+	}
+
+	void ShiftRight(bi_int& data, std::size_t bit_shift_amount, bool ext_sign) {
+
+		std::size_t sizeInBytes = data.Size * sizeof(bi_type);
+		const bi_type sign = BI_SIGN(data);
+		if (bit_shift_amount >= sizeInBytes * 8) {
+
+			memset(data.Buffer, ext_sign ? sign : 0, sizeInBytes);
+
+			return;
+		}
+
+		std::uint8_t* buffer = (std::uint8_t*)data.Buffer;
+		std::size_t offset = bit_shift_amount / 8;
+		std::uint8_t rest = (std::uint8_t)(bit_shift_amount % 8);
+		bi_memmove(buffer, sizeInBytes, buffer + offset, sizeInBytes - offset);
+		memset(buffer + sizeInBytes - offset, ext_sign ? sign : 0, offset);
+
+		// Shift the last 'rest' bits to the right
+
+		std::uint8_t* byte;
+		for (byte = (std::uint8_t*)data.Buffer; sizeInBytes--; byte++) {
+
+			std::uint8_t bits = 0;
+			if (sizeInBytes)
+				bits = byte[1] & (0xFF >> (CHAR_BIT - rest));
+
+			*byte >>= rest;
+			*byte |= (bits << (CHAR_BIT - rest));
+		}
+
+		if (ext_sign)
+			buffer[data.Size * sizeof(bi_type) - 1] |= (sign << (CHAR_BIT - rest));
+	}
+
+	// --- String functions ---
 }

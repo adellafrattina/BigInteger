@@ -129,4 +129,63 @@ namespace Utils {
 	/// <param name="size">The big integer buffer size</param>
 	/// <returns>The number of bits that have an impact on the number representation</returns>
 	std::size_t CountSignificantBits(const bi_type* const data, std::size_t size);
+
+	// --- Bitwise functions ---
+
+	/// <summary>
+	/// Inverts all the bits in the given big integer
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Not(bi_int& data);
+
+	/// <summary>
+	/// Executes the bitwise "and" between the two big integers. The resulting big integer will be stored in the first parameter and
+	/// its size will be based on the first big integer's size
+	/// </summary>
+	/// <param name="first">The first big integer (and where the result will be stored)</param>
+	/// <param name="second">The second big integer</param>
+	void And(bi_int& first, const bi_int& second);
+
+	/// <summary>
+	/// Executes the bitwise "or" between the two big integers. The resulting big integer will be stored in the first parameter and
+	/// its size will be based on the first big integer's size
+	/// </summary>
+	/// <param name="first">The first big integer (and where the result will be stored)</param>
+	/// <param name="second">The second big integer</param>
+	void Or(bi_int& first, const bi_int& second);
+
+	/// <summary>
+	/// Executes the bitwise "xor" between the two big integers. The resulting big integer will be stored in the first parameter and
+	/// its size will be based on the first big integer's size
+	/// </summary>
+	/// <param name="first">The first big integer (and where the result will be stored)</param>
+	/// <param name="second">The second big integer</param>
+	void Xor(bi_int& first, const bi_int& second);
+
+	/// <summary>
+	/// Shifts all the bits to the left by a specified amount
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	/// <param name="bit_shift_amount">The shift amount in bits</param>
+	void ShiftLeft(bi_int& data, std::size_t bit_shift_amount);
+
+	/// <summary>
+	/// Shifts all the bits to the right by a specified amount
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	/// <param name="bit_shift_amount">The shift amount in bits</param>
+	/// <param name="ext_sign">If the shift should extend the sign</param>
+	void ShiftRight(bi_int& data, std::size_t bit_shift_amount, bool ext_sign = false);
+
+	// --- String functions ---
+
+	/// <summary>
+	/// Converts a big integer to a printable string
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	/// <returns>A readable version of the number expressed in base 10 and saved as a string</returns>
+	std::string ToString(const bi_int& data);
+
+
+	bi_int FromString(const std::string& str);
 }
