@@ -206,6 +206,22 @@ namespace Utils {
 		return word;
 	}
 
+	void BytesFromWORD(std::uint8_t* data, std::size_t size_in_bytes, const WORD word) {
+
+		size_in_bytes = size_in_bytes > sizeof(WORD) ? sizeof(WORD) : size_in_bytes;
+		if (IsLittleEndian()) {
+
+			bi_memcpy(data, size_in_bytes, &word, size_in_bytes);
+		}
+
+		else {
+
+			const std::uint8_t* wordBuffer = reinterpret_cast<const std::uint8_t*>(&word);
+			for (std::size_t i = 0; i < size_in_bytes; i++)
+				data[size_in_bytes - 1 - i] = wordBuffer[i];
+		}
+	}
+
 	inline bool IsNegative(const bi_int& data) {
 
 		return BI_SIGN(data) == BI_MINUS_SIGN;
@@ -230,6 +246,100 @@ namespace Utils {
 		}
 
 		return bitSize == 0 ? 1 : bitSize;
+	}
+
+	// --- Mathematical functions ---
+
+	void Negate(bi_int& data) {
+
+		Not(data);
+		Increment(data);
+	}
+
+	void Abs(bi_int& data) {
+
+		if (IsNegative(data))
+			Negate(data);
+	}
+
+	void Increment(bi_int& data) {
+
+		const bool sameSign = BI_SIGN(data) == BI_PLUS_SIGN;
+		const std::size_t sizeAsWords = data.Size / sizeof(WORD);
+		const std::size_t remainingBytes = data.Size % sizeof(WORD);
+
+		std::uint8_t carry = 1;
+		std::size_t i = 0;
+		while (i < sizeAsWords && carry != 0) {
+
+			carry = 0;
+			WORD value = BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD));
+			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD), value + 1);
+			if (value + 1 <= value)
+				carry = 1;
+
+			i++;
+		}
+
+		while (i < remainingBytes && carry != 0) {
+
+			carry = 0;
+			bi_type value = data.Buffer[i];
+			data.Buffer[i]++;
+			if (data.Buffer[i] <= value)
+				carry = 1;
+
+			i++;
+		}
+
+		if (sameSign) {
+
+			if (BI_SIGN(data) != BI_PLUS_SIGN) {
+
+				Resize(data, data.Size + 1, false);
+				data.Buffer[data.Size - 1] = BI_PLUS_SIGN;
+			}
+		}
+	}
+
+	void Decrement(bi_int& data) {
+
+		const bool sameSign = BI_SIGN(data) == BI_MINUS_SIGN;
+		const std::size_t sizeAsWords = data.Size / sizeof(WORD);
+		const std::size_t remainingBytes = data.Size % sizeof(WORD);
+
+		std::uint8_t carry = 1;
+		std::size_t i = 0;
+		while (i < sizeAsWords && carry != 0) {
+
+			carry = 0;
+			WORD value = BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD));
+			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD), value - 1);
+			if (value + 1 >= value)
+				carry = 1;
+
+			i++;
+		}
+
+		while (i < remainingBytes && carry != 0) {
+
+			carry = 0;
+			bi_type value = data.Buffer[i];
+			data.Buffer[i]--;
+			if (data.Buffer[i] >= value)
+				carry = 1;
+
+			i++;
+		}
+
+		if (sameSign) {
+
+			if (BI_SIGN(data) != BI_MINUS_SIGN) {
+
+				Resize(data, data.Size + 1, false);
+				data.Buffer[data.Size - 1] = BI_MINUS_SIGN;
+			}
+		}
 	}
 
 	// --- Bitwise functions ---
@@ -359,4 +469,14 @@ namespace Utils {
 	}
 
 	// --- String functions ---
+
+	std::string ToString(const bi_int& data) {
+
+		return std::string();
+	}
+
+	bool FromString(bi_int& data, const std::string& str) {
+
+		return false;
+	}
 }

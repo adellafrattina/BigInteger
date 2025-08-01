@@ -116,6 +116,15 @@ namespace Utils {
 	WORD BytesToWORD(const std::uint8_t* data, std::size_t size_in_bytes);
 
 	/// <summary>
+	/// Converts the given word (8 bytes on 64-bit architecture, 4 bytes on 32-bit architecture) into an array of bytes.
+	/// The byte ordering will be little-endian, so the less significant bit (LSB) will be inside the first element in the array, while the most significant bit (MSB) will be inside the last element in the array
+	/// </summary>
+	/// <param name="data">The desired array</param>
+	/// <param name="size_in_bytes">The desired array size in bytes</param>
+	/// <param name="word">The desired word</param>
+	void BytesFromWORD(std::uint8_t* data, std::size_t size_in_bytes, const WORD word);
+
+	/// <summary>
 	/// Checks whether the specified number is negative or not
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
@@ -129,6 +138,32 @@ namespace Utils {
 	/// <param name="size">The big integer buffer size</param>
 	/// <returns>The number of bits that have an impact on the number representation</returns>
 	std::size_t CountSignificantBits(const bi_type* const data, std::size_t size);
+
+	// --- Mathematical functions ---
+
+	/// <summary>
+	/// Negates the big integer. If the big integer was positive, it will became negative. If it was negative, it will become positive
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Negate(bi_int& data);
+
+	/// <summary>
+	/// Turns the provided big integer number into a positive big integer
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Abs(bi_int& data);
+
+	/// <summary>
+	/// Increments the big integer by one. It could resize the array if overflow occurs
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Increment(bi_int& data);
+
+	/// <summary>
+	/// Decrements the big integer by one. It could resize the array if overflow occurs
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Decrement(bi_int& data);
 
 	// --- Bitwise functions ---
 
@@ -186,6 +221,11 @@ namespace Utils {
 	/// <returns>A readable version of the number expressed in base 10 and saved as a string</returns>
 	std::string ToString(const bi_int& data);
 
-
-	bi_int FromString(const std::string& str);
+	/// <summary>
+	/// Converts a string to a big integer
+	/// </summary>
+	/// <param name="data">The big integer variable to store the converted number</param>
+	/// <param name="str">The string to convert</param>
+	/// <returns>True if the convertion has succeeded, false if not</returns>
+	bool FromString(bi_int& data, const std::string& str);
 }
