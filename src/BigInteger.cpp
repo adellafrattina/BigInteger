@@ -75,7 +75,7 @@ namespace big {
 
 	std::string Integer::ToString() const {
 
-		return "";
+		return Utils::ToString(m_Data);
 	}
 
 	const void* Integer::Data() {

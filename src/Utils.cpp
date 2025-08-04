@@ -97,7 +97,7 @@ namespace Utils {
 
 		if (ext_sign) {
 
-			const bi_type sign = BI_SIGN(dest);
+			const bi_type sign = BI_SIGN(src);
 			for (std::size_t i = src.Size; i < dest.Size; i++)
 				dest.Buffer[i] = sign;
 		}
@@ -240,7 +240,7 @@ namespace Utils {
 				const std::size_t index = currentCellSign == sign ? size - 1 - i : size - i;
 				bi_type min = data[index];
 				bitSize = index * 8;
-				bitSize += (std::size_t)log2(min) + 1;
+				bitSize += min > 0 ? (std::size_t)log2(min) + 1 : 1;
 				break;
 			}
 		}
@@ -472,7 +472,143 @@ namespace Utils {
 
 	std::string ToString(const bi_int& data) {
 
-		return std::string();
+		// If the big integer is allocated on the stack, we can use the library functions to convert the number to string
+		if (IsOnStack(data))
+			return std::to_string((std::int64_t)GetSNO(data));
+
+		// Shifts left by one bit
+		void(*ShiftLeft1)(std::uint8_t* buffer, std::size_t size_in_bytes)
+			=
+			[](std::uint8_t* buffer, std::size_t size_in_bytes) {
+
+				std::uint8_t* byte;
+				for (byte = (std::uint8_t*)buffer; size_in_bytes--; byte++) {
+
+					std::uint8_t bit = 0;
+					if (size_in_bytes)
+						bit = byte[1] & (1 << (CHAR_BIT - 1)) ? 1 : 0;
+
+					*byte <<= 1;
+					*byte |= bit;
+				}
+			};
+
+		// Shifts left by 4 bits
+		void(*ShiftLeft4)(std::uint8_t* buffer, std::size_t size_in_bytes)
+			=
+			[](std::uint8_t* buffer, std::size_t size_in_bytes) {
+
+				std::uint8_t* byte;
+				for (byte = (std::uint8_t*)buffer; size_in_bytes--; byte++) {
+
+					std::uint8_t bit = 0;
+					if (size_in_bytes)
+						bit = (byte[1] & (0xFF << (CHAR_BIT - 4))) >> (CHAR_BIT - 4);
+
+					*byte <<= 4;
+					*byte |= bit;
+				}
+			};
+
+		const bool isNegative = IsNegative(data);
+
+		bi_int convertedData;
+		Resize(convertedData, data.Size, false);
+		Copy(convertedData, data);
+
+		// Re-Convert from 2cp
+		if (isNegative) {
+
+			Decrement(convertedData);
+			Not(convertedData);
+		}
+
+		// Big integer significant bits
+		const std::size_t significantBits = CountSignificantBits(convertedData.Buffer, convertedData.Size);
+
+		// Size in bytes = ceil(4*ceil(n/3)/8) + 1
+		// The last one is needed as an auxiliary buffer to store the first 8 bits in the number
+		const std::size_t bcdBufferSize = 2 * (std::size_t)ceil(ceil((long double)significantBits / 3.0) / 2.0) + 1;
+
+		// The binary-coded decimal buffer
+		std::uint8_t* bcdBuffer = (std::uint8_t*)calloc(bcdBufferSize, sizeof(std::uint8_t));
+		if (bcdBuffer == NULL)
+			return "0";
+
+		std::uint8_t* buffer = (std::uint8_t*)convertedData.Buffer; // Big integer buffer as byte array
+		const std::size_t bufferSize = ceil((long double)significantBits / 8.0); // Big integer buffer size as byte array
+		const std::size_t shiftAmount = bufferSize * 8; // The amount of shifts needed to convert from binary representation to binary-coded decimal representation
+		const std::size_t AUX_BUFFER_INDEX = bcdBufferSize - 1; // The index of the auxiliary buffer in the bcdBuffer (the last buffer's cell)
+		for (std::size_t shift = 0; shift < shiftAmount; shift++) {
+
+			// If the shift counter consumes all the bits in the auxiliar buffer, refill it with new data from the big integer buffer
+			if (shift % 8 == 0)
+				bcdBuffer[AUX_BUFFER_INDEX] = buffer[bufferSize - 1 - shift / 8];
+
+			// Check every 4 bits if there is at least 5. If so, add 3 to the 4 bits
+			for (std::size_t i = AUX_BUFFER_INDEX / 2; i < AUX_BUFFER_INDEX; i++) { // - (shift / 8 + 1)
+
+				if (bcdBuffer[i] == 0)
+					continue;
+
+				// Check the high bits...
+
+				std::uint8_t digit = (bcdBuffer[i] & HIGH_BITS) >> 4;
+				if (digit > 4) {
+
+					digit += 3;
+					bcdBuffer[i] = (digit << 4) | (LOW_BITS & bcdBuffer[i]);
+				}
+
+				// and the low bits
+
+				digit = bcdBuffer[i] & LOW_BITS;
+				if (digit > 4) {
+
+					digit += 3;
+					bcdBuffer[i] = digit | (HIGH_BITS & bcdBuffer[i]);
+				}
+			}
+
+			// Shift left by one position
+			ShiftLeft1(bcdBuffer, bcdBufferSize);
+		}
+
+		// Shift the bits in the correct position to create the string buffer
+		for (std::size_t i = 0; i < AUX_BUFFER_INDEX; i++) {
+
+			ShiftLeft4(bcdBuffer, AUX_BUFFER_INDEX - i);
+			bcdBuffer[bcdBufferSize - 2 - i] >>= 4;
+		}
+
+		// Remove the useless bits at the start
+		std::size_t offset = 0;
+		for (; offset < bcdBufferSize - 1; offset++)
+			if (bcdBuffer[offset] != 0)
+				break;
+
+		// If the number is zero
+		if (offset == AUX_BUFFER_INDEX)
+			return "0";
+
+		// Create the actual digit string
+		std::string digitStr;
+		digitStr.resize(bcdBufferSize - 1 - offset + isNegative);
+		bi_memcpy(digitStr.data() + isNegative, bcdBufferSize - 1 - offset + isNegative, bcdBuffer + offset, bcdBufferSize - 1 - offset);
+		if (isNegative)
+			digitStr[0] = '-';
+
+		// Convert from binary number to the ASCII character number
+		for (std::size_t i = isNegative; i < digitStr.size(); i++)
+			digitStr[i] += 48;
+
+		// Free the bcd buffer
+		free(bcdBuffer);
+
+		// Clear the converted data
+		Clear(convertedData);
+
+		return digitStr;
 	}
 
 	bool FromString(bi_int& data, const std::string& str) {
