@@ -93,9 +93,9 @@ namespace big {
 		return m_Data.Size * sizeof(bi_type);
 	}
 
-	void Integer::Resize(std::size_t size_in_bytes) {
+	void Integer::Resize(std::size_t size_in_bytes, bool ext_sign) {
 
-		Utils::Resize(m_Data, size_in_bytes);
+		Utils::Resize(m_Data, size_in_bytes, ext_sign);
 	}
 
 	void Integer::ShrinkToFit() {

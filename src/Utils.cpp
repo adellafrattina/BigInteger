@@ -80,7 +80,7 @@ namespace Utils {
 			memset(data.Buffer, 0, new_size * sizeof(bi_type));
 
 			// Copy the old data
-			bi_memmove(data.Buffer, new_size * sizeof(bi_type), tmp, old_size * sizeof(bi_type));
+			bi_memcpy(data.Buffer, new_size * sizeof(bi_type), tmp, (old_size > new_size ? new_size : old_size) * sizeof(bi_type));
 
 			// Fill the rest of the new buffer data with the old data sign
 			if (ext_sign)
@@ -328,7 +328,7 @@ namespace Utils {
 			carry = 0;
 			WORD value = BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD));
 			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD), value - 1);
-			if (value + 1 >= value)
+			if (value - 1 >= value)
 				carry = 1;
 
 			i++;
