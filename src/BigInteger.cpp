@@ -98,6 +98,11 @@ namespace big {
 		Utils::Resize(m_Data, size_in_bytes);
 	}
 
+	void Integer::ShrinkToFit() {
+
+		Utils::ShrinkToFit(m_Data);
+	}
+
 	// Stream
 
 	std::istream& operator>>(std::istream& is, big::Integer& n) {

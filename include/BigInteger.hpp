@@ -119,6 +119,7 @@ namespace big {
 		std::size_t Size() const;
 		std::size_t SizeInBytes() const;
 		void Resize(std::size_t size_in_bytes);
+		void ShrinkToFit();
 
 		// Stream
 
