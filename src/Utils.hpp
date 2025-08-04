@@ -90,14 +90,14 @@ namespace Utils {
 	/// </summary>
 	/// <param name="n">The desired number</param>
 	/// <returns>The minimum number of bits needed to represent the desired number</returns>
-	inline std::size_t GetBitSize(WORD n);
+	std::size_t GetBitSize(WORD n);
 
 	/// <summary>
 	/// Gets the minimum number of bytes needed to represent the desired number
 	/// </summary>
 	/// <param name="n">The desired number</param>
 	/// <returns>The minimum number of bytes needed to represent the desired number</returns>
-	inline std::size_t GetByteSize(WORD n);
+	std::size_t GetByteSize(WORD n);
 
 	/// <summary>
 	/// Converts the first bytes (usually 8 bytes) of a big integer to a word

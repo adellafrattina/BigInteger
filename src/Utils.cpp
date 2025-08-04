@@ -153,16 +153,21 @@ namespace Utils {
 		Resize(data, size, false);
 	}
 
-	inline std::size_t GetBitSize(WORD n) {
+	std::size_t GetBitSize(WORD n) {
 
-		return std::size_t(log2(n)) + 1;
+		std::int32_t bits = 1;
+		while (n > 0) {
+
+			n >>= 1;
+			++bits;
+		}
+
+		return bits;
 	}
 
-	inline std::size_t GetByteSize(WORD n) {
+	std::size_t GetByteSize(WORD n) {
 
-		const std::size_t bits = std::size_t(log2(n)) + 1;
-
-		return bits / 8 + (std::size_t)std::ceil((long double)bits / 8.0);
+		return (std::size_t)std::ceil((long double)(GetBitSize(n)) / 8.0);
 	}
 
 	inline WORD BigIntegerToWORD(const bi_int& data) {
