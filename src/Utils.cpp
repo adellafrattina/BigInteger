@@ -22,6 +22,8 @@ void SetSNO(bi_int& data, WORD sno) {
 
 namespace Utils {
 
+	// --- Debug functions ---
+
 	void PrintAsBinary(void* data, std::size_t size_in_bytes) {
 
 		std::uint8_t* buffer = (std::uint8_t*)data;
@@ -35,6 +37,8 @@ namespace Utils {
 
 		putchar('\n');
 	}
+
+	// --- Basic functions ---
 
 	inline bool IsLittleEndian() {
 
@@ -103,16 +107,25 @@ namespace Utils {
 		}
 	}
 
-	void Clear(bi_int& data) {
+	void Move(bi_int& dest, bi_int& src, bool ext_sign) {
 
-		if (data.Size == BI_WORD_SIZE)
-			SetSNO(data, 0);
+		if (IsOnStack(src))
+			Copy(dest, src, 0, ext_sign);
 
 		else {
 
-			delete[] data.Buffer;
-			SetSNO(data, 0);
+			dest.Buffer = src.Buffer;
+			dest.Size = src.Size;
+			SetSNO(src, 0);
 		}
+	}
+
+	void Clear(bi_int& data) {
+
+		if (data.Size != BI_WORD_SIZE)
+			delete[] data.Buffer;
+
+		SetSNO(data, 0);
 	}
 
 	void ShrinkToFit(bi_int& data) {

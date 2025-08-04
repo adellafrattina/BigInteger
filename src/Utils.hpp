@@ -66,6 +66,14 @@ namespace Utils {
 	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest = 0, bool ext_sign = true);
 
 	/// <summary>
+	/// Moves the src big integer into the dest one. If the src is allocated on the stack, it will be trivially copied
+	/// </summary>
+	/// <param name="dest">The destination (where to store the src)</param>
+	/// <param name="src">The source (from where to pick the data)</param>
+	/// <param name="ext_sign">If the destination buffer is bigger than the source one, the destination will be sign extended at the end (true by default)</param>
+	void Move(bi_int& dest, bi_int& src, bool ext_sign = true);
+
+	/// <summary>
 	/// Clears the big integer
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
