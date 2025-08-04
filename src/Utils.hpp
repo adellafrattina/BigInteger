@@ -150,6 +150,18 @@ namespace Utils {
 	// --- Mathematical functions ---
 
 	/// <summary>
+	/// Compares the two given big integers
+	/// </summary>
+	/// <param name="first">The first big integer</param>
+	/// <param name="second">The second big integer</param>
+	/// <returns>
+	/// A number greater than zero if the first number is bigger than the second one.
+	/// A number smaller than zero if the first number is smaller than the second one.
+	/// Zero if the two numbers are equal
+	/// </returns>
+	int Compare(const bi_int& first, const bi_int& second);
+
+	/// <summary>
 	/// Negates the big integer. If the big integer was positive, it will became negative. If it was negative, it will become positive
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
