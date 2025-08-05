@@ -125,6 +125,11 @@ namespace big {
 		Utils::ShrinkToFit(m_Data);
 	}
 
+	void Integer::Clear() {
+
+		Utils::Clear(m_Data);
+	}
+
 	// Stream
 
 	std::istream& operator>>(std::istream& is, big::Integer& n) {
@@ -143,6 +148,8 @@ namespace big {
 		return os << n.ToString();
 	}
 
+	// Operator overloading
+
 	big::Integer operator+(const big::Integer& first, const big::Integer& second) {
 
 		big::Integer res;
@@ -153,6 +160,8 @@ namespace big {
 		return res;
 	}
 }
+
+// --- Big integer structure ---
 
 bi_int::bi_int()
 	: Buffer(nullptr), Size(sizeof(WORD) / sizeof(bi_type)), m_SNO(0)

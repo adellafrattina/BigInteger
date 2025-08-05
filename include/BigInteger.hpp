@@ -122,11 +122,14 @@ namespace big {
 		std::size_t SizeInBytes() const;
 		void Resize(std::size_t size_in_bytes, bool ext_sign = true);
 		void ShrinkToFit();
+		void Clear();
 
 		// Stream
 
 		friend BI_API std::istream& operator>>(std::istream& is, big::Integer& n);
 		friend BI_API std::ostream& operator<<(std::ostream& os, const big::Integer& n);
+
+		// Operator overloading
 
 		friend BI_API big::Integer operator+(const big::Integer& first, const big::Integer& second);
 
