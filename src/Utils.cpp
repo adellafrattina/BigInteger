@@ -3,10 +3,10 @@
 #include "Utils.hpp"
 
 #undef BI_WORD_SIZE
-#define BI_WORD_SIZE sizeof(WORD) / sizeof(bi_type)
+#define BI_WORD_SIZE (sizeof(WORD) / sizeof(bi_type))
 
 #undef BI_SIGN_BUFFER
-#define BI_SIGN_BUFFER(b, s) (b[s - 1] & ((bi_type)1 << (sizeof(bi_type) * 8 - 1))) ? BI_MINUS_SIGN : BI_PLUS_SIGN
+#define BI_SIGN_BUFFER(b, s) ((b[s - 1] & ((bi_type)1 << (sizeof(bi_type) * 8 - 1))) ? BI_MINUS_SIGN : BI_PLUS_SIGN)
 #undef BI_SIGN
 #define BI_SIGN(x) BI_SIGN_BUFFER(x.Buffer, x.Size)
 
@@ -589,7 +589,7 @@ namespace Utils {
 			return "0";
 
 		std::uint8_t* buffer = (std::uint8_t*)convertedData.Buffer; // Big integer buffer as byte array
-		const std::size_t bufferSize = ceil((long double)significantBits / 8.0); // Big integer buffer size as byte array
+		const std::size_t bufferSize = (std::size_t)ceil((long double)significantBits / 8.0); // Big integer buffer size as byte array
 		const std::size_t shiftAmount = bufferSize * 8; // The amount of shifts needed to convert from binary representation to binary-coded decimal representation
 		const std::size_t AUX_BUFFER_INDEX = bcdBufferSize - 1; // The index of the auxiliary buffer in the bcdBuffer (the last buffer's cell)
 		for (std::size_t shift = 0; shift < shiftAmount; shift++) {
@@ -666,6 +666,123 @@ namespace Utils {
 
 	bool FromString(bi_int& data, const std::string& str) {
 
-		return false;
+		// Shifts right by one bit
+		void(*ShiftRight1)(std::uint8_t* buffer, std::size_t size_in_bytes)
+			=
+			[](std::uint8_t* buffer, std::size_t size_in_bytes) {
+
+				std::uint8_t* byte;
+				for (byte = size_in_bytes - 1 + (std::uint8_t*)buffer; size_in_bytes--; byte--) {
+
+					std::uint8_t bit = 0;
+					if (size_in_bytes)
+						bit = byte[-1] & 1 ? 1 : 0;
+
+					*byte >>= 1;
+					*byte |= (bit << (CHAR_BIT - 1));
+				}
+			};
+
+		// If the string is empty, return null
+		if (str.empty())
+			return false;
+
+		// Check if the number is positive or negative
+		const bool isNegative = str.at(0) == '-';
+		const std::size_t strLength = isNegative ? str.length() - 1 : str.length();
+		if (strLength == 0)
+			return false;
+
+		// Check the string is made up by numbers only
+		for (std::size_t i = isNegative; i < str.length(); i++)
+			if (str.at(i) < '0' || str.at(i) > '9')
+				return false;
+
+		// Reverse double dabble algorithm
+
+		// Size in bytes = ceil(string length / 2) + 1
+		// The last one is needed as an auxiliary buffer to store the first 8 bits in the final number
+		const std::size_t bcdBufferSize = (std::size_t)(std::ceil((long double)strLength / 2.0)) + 1;
+
+		// The binary-coded decimal buffer
+		std::uint8_t* bcdBuffer = (std::uint8_t*)calloc(bcdBufferSize, sizeof(std::uint8_t));
+		if (bcdBuffer == NULL)
+			return "0";
+
+		// Fill the bcd buffer with the provided data.
+		// It starts at the end to ensure the last bits are adjacent to the auxiliary buffer,
+		// so the algorithm can right shift them in the correct position
+
+		long double i = 0.0;
+		std::size_t strIndex = 0;
+		std::uint8_t nibble_offset = LOW_BITS;
+		std::uint8_t shiftAmount = 0;
+		while (strIndex < strLength) {
+
+			bcdBuffer[bcdBufferSize - 2 - (std::size_t)i] |= ((std::uint8_t)(str.at(strLength - 1 - strIndex + isNegative) - '0') << shiftAmount) & nibble_offset;
+			nibble_offset = ~nibble_offset;
+			shiftAmount = shiftAmount == 4 ? 0 : 4;
+			i += 0.5;
+			strIndex++;
+		}
+
+		// Set up data
+
+		const std::size_t dataSize = (std::size_t)std::ceil(std::ceil((long double)strLength * log2(10.0l)) / (sizeof(bi_type) * 8.0l));
+
+		if (data.Size < dataSize) {
+
+			Clear(data);
+			Resize(data, dataSize, false);
+		}
+
+		std::size_t offset = 0;
+		std::uint8_t* buffer = (std::uint8_t*)data.Buffer;
+		for (std::size_t shift = 0; shift <= dataSize * sizeof(bi_type) * 8; shift++) { // Plus one (already inside 'Size') because we need to shift the last bit into the auxiliary buffer
+
+			// When we have shifted 8 bits in the auxiliar buffer, transfer it to the buffer
+			if (shift > 0 && shift % 8 == 0) {
+
+				buffer[shift / 8 - 1] = bcdBuffer[bcdBufferSize - 1];
+				offset++;
+			}
+
+			// Shift right by one position
+			ShiftRight1(bcdBuffer, bcdBufferSize);
+
+			// We start from an offset to avoid checking values that have already been processed
+			for (std::size_t i = offset; i < bcdBufferSize - 1; i++) {
+
+				if (bcdBuffer[i] == 0)
+					continue;
+
+				// Check the high bits...
+
+				std::uint8_t digit = (bcdBuffer[i] & HIGH_BITS) >> 4;
+				if (digit > 4) {
+
+					digit -= 3;
+					bcdBuffer[i] = (digit << 4) | (LOW_BITS & bcdBuffer[i]);
+				}
+
+				// and the low bits
+
+				digit = bcdBuffer[i] & LOW_BITS;
+				if (digit > 4) {
+
+					digit -= 3;
+					bcdBuffer[i] = digit | (HIGH_BITS & bcdBuffer[i]);
+				}
+			}
+		}
+
+		// Convert into 2cp
+		if (isNegative) {
+
+			Not(data);
+			Increment(data);
+		}
+
+		return true;
 	}
 }

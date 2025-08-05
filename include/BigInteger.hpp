@@ -112,7 +112,7 @@ namespace big {
 		Integer();
 		~Integer();
 
-		static Integer FromString(const std::string& n);
+		static bool FromString(Integer& data, const std::string& str);
 
 		std::string ToString() const;
 		const void* Data();

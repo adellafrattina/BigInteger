@@ -30,7 +30,14 @@ namespace big {
 
 	{
 
-		// @TODO
+		if (size_in_bytes > sizeof(WORD)) {
+
+			Utils::Resize(m_Data, size_in_bytes, false);
+			Utils::FromString(m_Data, str);
+		}
+
+		else
+			Utils::FromString(m_Data, str);
 	}
 
 	Integer::Integer(const Integer& other, std::size_t size_in_bytes)
@@ -68,9 +75,9 @@ namespace big {
 		Utils::Clear(m_Data);
 	}
 
-	Integer Integer::FromString(const std::string& n) {
+	bool Integer::FromString(Integer& data, const std::string& str) {
 
-		return Integer();
+		return Utils::FromString(data.m_Data, str);
 	}
 
 	std::string Integer::ToString() const {
@@ -109,11 +116,9 @@ namespace big {
 
 		std::string str;
 		is >> str;
-		bi_int tmp = Integer::FromString(str).m_Data;
-		if (tmp.Buffer == nullptr)
+
+		if (!Integer::FromString(n, str))
 			is.setstate(std::ios_base::failbit);
-		else
-			n.m_Data = tmp;
 
 		return is;
 	}
