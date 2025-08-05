@@ -7,7 +7,7 @@
 
 namespace big {
 
-	Integer::Integer(WORD n, std::size_t size_in_bytes)
+	Integer::Integer(std::int64_t n, std::size_t size_in_bytes)
 		: m_Data()
 
 	{

@@ -106,7 +106,7 @@ namespace big {
 
 	public:
 
-		Integer(WORD n, std::size_t size_in_bytes = 0);
+		Integer(std::int64_t n, std::size_t size_in_bytes = 0);
 		Integer(const std::string& str, std::size_t size_in_bytes = 0);
 		Integer(const Integer& other, std::size_t size_in_bytes = 0);
 		Integer();
