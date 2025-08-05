@@ -122,10 +122,16 @@ namespace Utils {
 
 	void Clear(bi_int& data) {
 
-		if (data.Size != BI_WORD_SIZE)
-			delete[] data.Buffer;
+		if (data.Size != BI_WORD_SIZE) {
 
-		SetSNO(data, 0);
+			PRINT("Clear called (data: %p, size: %zu)", data.Buffer, data.Size);
+
+			delete[] data.Buffer;
+			data.Size = BI_WORD_SIZE;
+		}
+
+		for (std::size_t i = 0; i < data.Size; i++)
+			data.Buffer[i] = 0;
 	}
 
 	void ShrinkToFit(bi_int& data) {
@@ -334,12 +340,12 @@ namespace Utils {
 			i++;
 		}
 
-		while (i < remainingBytes && carry != 0) {
+		while (i <= remainingBytes && carry != 0) {
 
 			carry = 0;
-			bi_type value = data.Buffer[i];
-			data.Buffer[i]++;
-			if (data.Buffer[i] <= value)
+			std::uint8_t value = (std::uint8_t)BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(std::uint8_t));
+			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(std::uint8_t), value + 1);
+			if (value + 1 <= value)
 				carry = 1;
 
 			i++;
@@ -374,12 +380,12 @@ namespace Utils {
 			i++;
 		}
 
-		while (i < remainingBytes && carry != 0) {
+		while (i <= remainingBytes && carry != 0) {
 
 			carry = 0;
-			bi_type value = data.Buffer[i];
-			data.Buffer[i]--;
-			if (data.Buffer[i] >= value)
+			std::uint8_t value = (std::uint8_t)BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(std::uint8_t));
+			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(std::uint8_t), value - 1);
+			if (value - 1 >= value)
 				carry = 1;
 
 			i++;
@@ -393,6 +399,104 @@ namespace Utils {
 				data.Buffer[data.Size - 1] = BI_MINUS_SIGN;
 			}
 		}
+	}
+
+	template<typename T>
+	static void g_AddWORD(bi_type* op1, bi_type* op2, std::uint8_t& carry) {
+
+		T const v1 = (T)BytesToWORD(op1, sizeof(T));
+		T const v2 = (T)BytesToWORD(op2, sizeof(T));
+		T value = v1;
+		T sum = v1 + v2;
+		BytesFromWORD(op1, sizeof(T), sum);
+		bool overflow = sum < value;
+		value = sum;
+		BytesFromWORD(op1, sizeof(T), sum + carry);
+		carry = (overflow || sum + carry < value) ? 1 : 0;
+	}
+
+	void Add(bi_int& first, const bi_int& second) {
+
+		bi_type* op1;
+		bi_type* op2;
+		if (first.Size > second.Size) {
+
+			op1 = first.Buffer;
+			op2 = new bi_type[first.Size];
+			bi_memcpy(op2, first.Size * sizeof(bi_type), second.Buffer, second.Size * sizeof(bi_type));
+			const bi_type sign = BI_SIGN(second);
+			for (std::size_t i = second.Size; i < first.Size; i++)
+				op2[i] = sign;
+		}
+
+		else if (first.Size < second.Size) {
+
+			op2 = second.Buffer;
+			Resize(first, second.Size);
+			op1 = first.Buffer;
+		}
+
+		else {
+
+			op1 = first.Buffer;
+			op2 = second.Buffer;
+		}
+
+		// The operands' size
+		const std::size_t size = first.Size;
+
+		// Check if the numbers have the same sign
+		const bool sameSign = BI_SIGN_BUFFER(op1, size) == BI_SIGN_BUFFER(op2, size);
+
+		// First addend sign
+		const bi_type sign1 = BI_SIGN_BUFFER(op1, size);
+
+		std::size_t i = size;
+		std::uint8_t carry = 0;
+		while (i > 0) {
+
+			if (i / sizeof(std::uint64_t) > 0) {
+
+				g_AddWORD<std::uint64_t>(op1 + size - i, op2 + size - i, carry);
+				i -= sizeof(std::uint64_t);
+			}
+
+			else if (i / sizeof(std::uint32_t) > 0) {
+
+				g_AddWORD<std::uint32_t>(op1 + size - i, op2 + size - i, carry);
+				i -= sizeof(std::uint32_t);
+			}
+
+			else if (i / sizeof(std::uint16_t) > 0) {
+
+				g_AddWORD<std::uint16_t>(op1 + size - i, op2 + size - i, carry);
+				i -= sizeof(std::uint16_t);
+			}
+
+			else {
+
+				g_AddWORD<std::uint8_t>(op1 + size - i, op2 + size - i, carry);
+				i -= sizeof(std::uint8_t);
+			}
+		}
+
+		// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
+		// The logic behind this code is the following:
+
+		// If the 2 big integers had the same sign at the beginning...
+		if (sameSign) {
+
+			// ... and the sum result has a different sign from the previous one...
+			if (op1[size - 1] != sign1) {
+
+				// ... then resize the destination buffer and add the sign at the end
+				Resize(first, size + 1, false);
+				first.Buffer[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+			}
+		}
+
+		if (first.Size > second.Size)
+			delete[] op2;
 	}
 
 	// --- Bitwise functions ---
@@ -736,9 +840,13 @@ namespace Utils {
 			Resize(data, dataSize, false);
 		}
 
+		else
+			for (std::size_t i = 0; i < data.Size; i++)
+				data.Buffer[i] = 0;
+
 		std::size_t offset = 0;
 		std::uint8_t* buffer = (std::uint8_t*)data.Buffer;
-		for (std::size_t shift = 0; shift <= dataSize * sizeof(bi_type) * 8; shift++) { // Plus one (already inside 'Size') because we need to shift the last bit into the auxiliary buffer
+		for (std::size_t shift = 0; shift <= dataSize * sizeof(bi_type) * 8; shift++) { // '<=' because we need to shift the last bit into the auxiliary buffer
 
 			// When we have shifted 8 bits in the auxiliar buffer, transfer it to the buffer
 			if (shift > 0 && shift % 8 == 0) {

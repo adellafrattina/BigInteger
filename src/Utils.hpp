@@ -185,6 +185,14 @@ namespace Utils {
 	/// <param name="data">The desired big integer</param>
 	void Decrement(bi_int& data);
 
+	/// <summary>
+	/// Sums the first big integer with the second one. The result is stored in the first one. The first big integer buffer could be resized if
+	/// the second one is bigger or if overflow occurs
+	/// </summary>
+	/// <param name="first">The first addend, where the result will be stored</param>
+	/// <param name="second">The second addend</param>
+	void Add(bi_int& first, const bi_int& second);
+
 	// --- Bitwise functions ---
 
 	/// <summary>

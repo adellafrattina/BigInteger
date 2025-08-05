@@ -40,6 +40,21 @@ namespace big {
 			Utils::FromString(m_Data, str);
 	}
 
+	Integer::Integer(const char* str, std::size_t size_in_bytes)
+		: m_Data()
+
+	{
+
+		if (size_in_bytes > sizeof(WORD)) {
+
+			Utils::Resize(m_Data, size_in_bytes, false);
+			Utils::FromString(m_Data, str);
+		}
+
+		else
+			Utils::FromString(m_Data, str);
+	}
+
 	Integer::Integer(const Integer& other, std::size_t size_in_bytes)
 		: m_Data()
 
@@ -127,6 +142,16 @@ namespace big {
 
 		return os << n.ToString();
 	}
+
+	big::Integer operator+(const big::Integer& first, const big::Integer& second) {
+
+		big::Integer res;
+		Utils::Resize(res.m_Data, first.m_Data.Size, false);
+		Utils::Copy(res.m_Data, first.m_Data);
+		Utils::Add(res.m_Data, second.m_Data);
+
+		return res;
+	}
 }
 
 bi_int::bi_int()
@@ -151,24 +176,43 @@ bi_int::bi_int(bi_type* buffer, std::size_t size)
 {}
 
 bi_int::bi_int(const bi_int& other)
-	: Buffer(nullptr), Size(other.Size), m_SNO(other.m_SNO)
+	: Buffer(nullptr), Size(0), m_SNO(0)
 
 {
 
-	if (Size == sizeof(WORD) / sizeof(bi_type))
+	if (Utils::IsOnStack(other)) {
+
+		m_SNO = other.m_SNO;
+		Size = other.Size;
 		Buffer = reinterpret_cast<bi_type*>(&m_SNO);
-	else
-		Buffer = other.Buffer;
+	}
+
+	else {
+
+		Utils::Resize(*this, other.Size, false);
+		Utils::Copy(*this, other, 0 , false);
+	}
 }
 
 bi_int& bi_int::operator=(const bi_int& other) {
 
-	Size = other.Size;
-	m_SNO = other.m_SNO;
-	if (Size == sizeof(WORD) / sizeof(bi_type))
+	if (Utils::IsOnStack(other)) {
+
+		m_SNO = other.m_SNO;
+		Size = other.Size;
 		Buffer = reinterpret_cast<bi_type*>(&m_SNO);
-	else
-		Buffer = other.Buffer;
+	}
+
+	else {
+
+		Utils::Resize(*this, other.Size, false);
+		Utils::Copy(*this, other, 0, false);
+	}
 
 	return *this;
+}
+
+bi_int::~bi_int() {
+
+	Utils::Clear(*this);
 }

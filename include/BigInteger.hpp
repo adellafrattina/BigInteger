@@ -66,6 +66,7 @@ public:
 	bi_int(bi_type* buffer, std::size_t size);
 	bi_int(const bi_int& other);
 	bi_int& operator=(const bi_int& other);
+	~bi_int();
 
 	// The big integer buffer
 	bi_type* Buffer;
@@ -108,6 +109,7 @@ namespace big {
 
 		Integer(std::int64_t n, std::size_t size_in_bytes = 0);
 		Integer(const std::string& str, std::size_t size_in_bytes = 0);
+		Integer(const char* str, std::size_t size_in_bytes = 0);
 		Integer(const Integer& other, std::size_t size_in_bytes = 0);
 		Integer();
 		~Integer();
@@ -125,6 +127,8 @@ namespace big {
 
 		friend BI_API std::istream& operator>>(std::istream& is, big::Integer& n);
 		friend BI_API std::ostream& operator<<(std::ostream& os, const big::Integer& n);
+
+		friend BI_API big::Integer operator+(const big::Integer& first, const big::Integer& second);
 
 	private:
 
