@@ -19,10 +19,8 @@ namespace big {
 			Utils::Copy(m_Data, tmp);
 		}
 
-		else {
-
+		else
 			m_Data = Utils::BigIntegerFromWORD(n);
-		}
 	}
 
 	Integer::Integer(const std::string& str, std::size_t size_in_bytes)
@@ -150,7 +148,7 @@ namespace big {
 	big::Integer operator+(const big::Integer& first, const big::Integer& second) {
 
 		big::Integer res;
-		Utils::Resize(res.m_Data, first.m_Data.Size, false);
+		Utils::Resize(res.m_Data, std::max(first.m_Data.Size, second.m_Data.Size), false);
 		Utils::Copy(res.m_Data, first.m_Data);
 		Utils::Add(res.m_Data, second.m_Data);
 
