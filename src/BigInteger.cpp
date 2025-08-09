@@ -78,6 +78,11 @@ namespace big {
 		}
 	}
 
+	Integer::Integer(Integer&& other) noexcept
+		: m_Data(std::move(other.m_Data))
+
+	{}
+
 	Integer::Integer()
 		: m_Data()
 
@@ -198,6 +203,24 @@ bi_int::bi_int(const bi_int& other)
 	}
 }
 
+bi_int::bi_int(bi_int&& other) noexcept
+	: Buffer(nullptr), Size(0), m_SNO(0)
+
+{
+
+	if (Utils::IsOnStack(other)) {
+
+		m_SNO = other.m_SNO;
+		Size = other.Size;
+		Buffer = reinterpret_cast<bi_type*>(&m_SNO);
+		other.m_SNO = 0;
+		memset(other.Buffer, 0, other.Size);
+	}
+
+	else
+		Utils::Move(*this, other);
+}
+
 bi_int& bi_int::operator=(const bi_int& other) {
 
 	if (Utils::IsOnStack(other)) {
@@ -212,6 +235,23 @@ bi_int& bi_int::operator=(const bi_int& other) {
 		Utils::Resize(*this, other.Size, false);
 		Utils::Copy(*this, other, 0, false);
 	}
+
+	return *this;
+}
+
+bi_int& bi_int::operator=(bi_int&& other) noexcept {
+
+	if (Utils::IsOnStack(other)) {
+
+		m_SNO = other.m_SNO;
+		Size = other.Size;
+		Buffer = reinterpret_cast<bi_type*>(&m_SNO);
+		other.m_SNO = 0;
+		memset(other.Buffer, 0, other.Size);
+	}
+
+	else
+		Utils::Move(*this, other);
 
 	return *this;
 }

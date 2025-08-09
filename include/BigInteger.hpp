@@ -65,7 +65,9 @@ public:
 	bi_int(WORD sno);
 	bi_int(bi_type* buffer, std::size_t size);
 	bi_int(const bi_int& other);
+	bi_int(bi_int&& other) noexcept;
 	bi_int& operator=(const bi_int& other);
+	bi_int& operator=(bi_int&& other) noexcept;
 	~bi_int();
 
 	// The big integer buffer
@@ -111,6 +113,7 @@ namespace big {
 		Integer(const std::string& str, std::size_t size_in_bytes = 0);
 		Integer(const char* str, std::size_t size_in_bytes = 0);
 		Integer(const Integer& other, std::size_t size_in_bytes = 0);
+		Integer(Integer&& other) noexcept;
 		Integer();
 		~Integer();
 

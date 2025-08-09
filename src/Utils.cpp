@@ -107,17 +107,18 @@ namespace Utils {
 		}
 	}
 
-	void Move(bi_int& dest, bi_int& src, bool ext_sign) {
+	void Move(bi_int& dest, bi_int& src) {
 
 		if (IsOnStack(src))
-			Copy(dest, src, 0, ext_sign);
+			Copy(dest, src, 0, false);
 
 		else {
 
 			dest.Buffer = src.Buffer;
 			dest.Size = src.Size;
-			SetSNO(src, 0);
 		}
+
+		SetSNO(src, 0);
 	}
 
 	void Clear(bi_int& data) {

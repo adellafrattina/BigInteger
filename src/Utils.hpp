@@ -70,8 +70,7 @@ namespace Utils {
 	/// </summary>
 	/// <param name="dest">The destination (where to store the src)</param>
 	/// <param name="src">The source (from where to pick the data)</param>
-	/// <param name="ext_sign">If the destination buffer is bigger than the source one, the destination will be sign extended at the end (true by default)</param>
-	void Move(bi_int& dest, bi_int& src, bool ext_sign = true);
+	void Move(bi_int& dest, bi_int& src);
 
 	/// <summary>
 	/// Clears the big integer
