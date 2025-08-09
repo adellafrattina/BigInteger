@@ -325,7 +325,6 @@ namespace Utils {
 
 		const bool sameSign = BI_SIGN(data) == BI_PLUS_SIGN;
 		const std::size_t sizeAsWords = data.Size / sizeof(WORD);
-		const std::size_t remainingBytes = data.Size % sizeof(WORD);
 
 		std::uint8_t carry = 1;
 		std::size_t i = 0;
@@ -340,11 +339,12 @@ namespace Utils {
 			i++;
 		}
 
-		while (i <= remainingBytes && carry != 0) {
+		i *= sizeof(WORD);
+		while (i < data.Size && carry != 0) {
 
 			carry = 0;
-			std::uint8_t value = (std::uint8_t)BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(std::uint8_t));
-			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(std::uint8_t), value + 1);
+			std::uint8_t value = (std::uint8_t)BytesToWORD(data.Buffer + i, sizeof(std::uint8_t));
+			BytesFromWORD(data.Buffer + i, sizeof(std::uint8_t), value + 1);
 			if (value + 1 <= value)
 				carry = 1;
 
@@ -365,7 +365,6 @@ namespace Utils {
 
 		const bool sameSign = BI_SIGN(data) == BI_MINUS_SIGN;
 		const std::size_t sizeAsWords = data.Size / sizeof(WORD);
-		const std::size_t remainingBytes = data.Size % sizeof(WORD);
 
 		std::uint8_t carry = 1;
 		std::size_t i = 0;
@@ -380,11 +379,12 @@ namespace Utils {
 			i++;
 		}
 
-		while (i <= remainingBytes && carry != 0) {
+		i *= sizeof(WORD);
+		while (i < data.Size && carry != 0) {
 
 			carry = 0;
-			std::uint8_t value = (std::uint8_t)BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(std::uint8_t));
-			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(std::uint8_t), value - 1);
+			std::uint8_t value = (std::uint8_t)BytesToWORD(data.Buffer + i, sizeof(std::uint8_t));
+			BytesFromWORD(data.Buffer + i, sizeof(std::uint8_t), value - 1);
 			if (value - 1 >= value)
 				carry = 1;
 
@@ -401,21 +401,9 @@ namespace Utils {
 		}
 	}
 
-	template<typename T>
-	static void g_AddWORD(bi_type* op1, bi_type* op2, std::uint8_t& carry) {
-
-		T const v1 = (T)BytesToWORD(op1, sizeof(T));
-		T const v2 = (T)BytesToWORD(op2, sizeof(T));
-		T value = v1;
-		T sum = v1 + v2;
-		BytesFromWORD(op1, sizeof(T), sum);
-		bool overflow = sum < value;
-		value = sum;
-		BytesFromWORD(op1, sizeof(T), sum + carry);
-		carry = (overflow || sum + carry < value) ? 1 : 0;
-	}
-
 	void Add(bi_int& first, const bi_int& second) {
+
+		// Set up the operands to be of the same size
 
 		bi_type* op1;
 		bi_type* op2;
@@ -443,7 +431,7 @@ namespace Utils {
 		}
 
 		// The operands' size
-		const std::size_t size = first.Size;
+		const std::size_t& size = first.Size;
 
 		// Check if the numbers have the same sign
 		const bool sameSign = BI_SIGN_BUFFER(op1, size) == BI_SIGN_BUFFER(op2, size);
@@ -451,33 +439,39 @@ namespace Utils {
 		// First addend sign
 		const bi_type sign1 = BI_SIGN_BUFFER(op1, size);
 
-		std::size_t i = size;
+		const std::size_t sizeAsWords = size / sizeof(WORD);
+
 		std::uint8_t carry = 0;
-		while (i > 0) {
+		std::size_t i = 0;
+		while (i < sizeAsWords) {
 
-			if (i / sizeof(std::uint64_t) > 0) {
+			WORD const v1 = BytesToWORD(op1 + i * sizeof(WORD), sizeof(WORD));
+			WORD const v2 = BytesToWORD(op2 + i * sizeof(WORD), sizeof(WORD));
+			WORD value = v1;
+			WORD sum = v1 + v2;
+			BytesFromWORD(op1 + i * sizeof(WORD), sizeof(WORD), sum);
+			bool overflow = sum < value;
+			value = sum;
+			BytesFromWORD(op1 + i * sizeof(WORD), sizeof(WORD), sum + carry);
+			carry = (overflow || sum + carry < value) ? 1 : 0;
 
-				g_AddWORD<std::uint64_t>(op1 + size - i, op2 + size - i, carry);
-				i -= sizeof(std::uint64_t);
-			}
+			i++;
+		}
 
-			else if (i / sizeof(std::uint32_t) > 0) {
+		i *= sizeof(WORD);
+		while (i < size) {
 
-				g_AddWORD<std::uint32_t>(op1 + size - i, op2 + size - i, carry);
-				i -= sizeof(std::uint32_t);
-			}
+			std::uint8_t const v1 = (std::uint8_t)BytesToWORD(op1 + i, sizeof(std::uint8_t));
+			std::uint8_t const v2 = (std::uint8_t)BytesToWORD(op2 + i, sizeof(std::uint8_t));
+			std::uint8_t value = v1;
+			std::uint8_t sum = v1 + v2;
+			BytesFromWORD(op1 + i, sizeof(std::uint8_t), sum);
+			bool overflow = sum < value;
+			value = sum;
+			BytesFromWORD(op1 + i, sizeof(std::uint8_t), sum + carry);
+			carry = (overflow || sum + carry < value) ? 1 : 0;
 
-			else if (i / sizeof(std::uint16_t) > 0) {
-
-				g_AddWORD<std::uint16_t>(op1 + size - i, op2 + size - i, carry);
-				i -= sizeof(std::uint16_t);
-			}
-
-			else {
-
-				g_AddWORD<std::uint8_t>(op1 + size - i, op2 + size - i, carry);
-				i -= sizeof(std::uint8_t);
-			}
+			i++;
 		}
 
 		// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
@@ -487,7 +481,7 @@ namespace Utils {
 		if (sameSign) {
 
 			// ... and the sum result has a different sign from the previous one...
-			if (op1[size - 1] != sign1) {
+			if (BI_SIGN_BUFFER(op1, size) != sign1) {
 
 				// ... then resize the destination buffer and add the sign at the end
 				Resize(first, size + 1, false);
@@ -761,9 +755,6 @@ namespace Utils {
 
 		// Free the bcd buffer
 		free(bcdBuffer);
-
-		// Clear the converted data
-		Clear(convertedData);
 
 		return digitStr;
 	}

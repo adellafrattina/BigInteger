@@ -85,10 +85,7 @@ namespace big {
 
 	{}
 
-	Integer::~Integer() {
-
-		Utils::Clear(m_Data);
-	}
+	Integer::~Integer() {}
 
 	bool Integer::FromString(Integer& data, const std::string& str) {
 
