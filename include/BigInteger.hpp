@@ -113,6 +113,7 @@ namespace big {
 		Integer(const std::string& str, std::size_t size_in_bytes = 0);
 		Integer(const char* str, std::size_t size_in_bytes = 0);
 		Integer(const Integer& other, std::size_t size_in_bytes = 0);
+		Integer& operator=(const Integer& other);
 		Integer(Integer&& other) noexcept;
 		Integer();
 		~Integer();
@@ -135,6 +136,7 @@ namespace big {
 		// Operator overloading
 
 		friend BI_API big::Integer operator+(const big::Integer& first, const big::Integer& second);
+		friend BI_API big::Integer& operator+=(big::Integer& first, const big::Integer& second);
 
 	private:
 

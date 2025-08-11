@@ -40,7 +40,7 @@ namespace Utils {
 
 	// --- Basic functions ---
 
-	inline bool IsLittleEndian() {
+	 bool IsLittleEndian() {
 
 		std::uint16_t n = 1;
 		std::uint8_t* ptr = (std::uint8_t*)&n;
@@ -131,8 +131,7 @@ namespace Utils {
 			data.Size = BI_WORD_SIZE;
 		}
 
-		for (std::size_t i = 0; i < data.Size; i++)
-			data.Buffer[i] = 0;
+		memset(data.Buffer, 0, data.Size);
 	}
 
 	void ShrinkToFit(bi_int& data) {
@@ -177,7 +176,7 @@ namespace Utils {
 		return (std::size_t)std::ceil((long double)(GetBitSize(n)) / 8.0);
 	}
 
-	inline WORD BigIntegerToWORD(const bi_int& data) {
+	 WORD BigIntegerToWORD(const bi_int& data) {
 
 		const std::uint8_t* buffer = reinterpret_cast<const std::uint8_t*>(data.Buffer);
 
@@ -195,7 +194,7 @@ namespace Utils {
 		}
 	}
 
-	inline bi_int BigIntegerFromWORD(WORD word) {
+	 bi_int BigIntegerFromWORD(WORD word) {
 
 		if (IsLittleEndian())
 			return { word };
@@ -247,7 +246,7 @@ namespace Utils {
 		}
 	}
 
-	inline bool IsNegative(const bi_int& data) {
+	 bool IsNegative(const bi_int& data) {
 
 		return BI_SIGN(data) == BI_MINUS_SIGN;
 	}
@@ -332,8 +331,8 @@ namespace Utils {
 		while (i < sizeAsWords && carry != 0) {
 
 			carry = 0;
-			WORD value = BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD));
-			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD), value + 1);
+			WORD value = BytesToWORD((std::uint8_t*)data.Buffer + i * sizeof(WORD), sizeof(WORD));
+			BytesFromWORD((std::uint8_t*)data.Buffer + i * sizeof(WORD), sizeof(WORD), value + 1);
 			if (value + 1 <= value)
 				carry = 1;
 
@@ -341,15 +340,10 @@ namespace Utils {
 		}
 
 		i *= sizeof(WORD);
-		while (i < data.Size && carry != 0) {
+		if (data.Size - i != 0 && carry != 0) {
 
-			carry = 0;
-			std::uint8_t value = (std::uint8_t)BytesToWORD(data.Buffer + i, sizeof(std::uint8_t));
-			BytesFromWORD(data.Buffer + i, sizeof(std::uint8_t), value + 1);
-			if (value + 1 <= value)
-				carry = 1;
-
-			i++;
+			WORD value = BytesToWORD((std::uint8_t*)data.Buffer + i, data.Size - i);
+			BytesFromWORD((std::uint8_t*)data.Buffer + i, data.Size - i, value + 1);
 		}
 
 		if (sameSign) {
@@ -372,8 +366,8 @@ namespace Utils {
 		while (i < sizeAsWords && carry != 0) {
 
 			carry = 0;
-			WORD value = BytesToWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD));
-			BytesFromWORD(data.Buffer + i * sizeof(WORD), sizeof(WORD), value - 1);
+			WORD value = BytesToWORD((std::uint8_t*)data.Buffer + i * sizeof(WORD), sizeof(WORD));
+			BytesFromWORD((std::uint8_t*)data.Buffer + i * sizeof(WORD), sizeof(WORD), value - 1);
 			if (value - 1 >= value)
 				carry = 1;
 
@@ -381,15 +375,10 @@ namespace Utils {
 		}
 
 		i *= sizeof(WORD);
-		while (i < data.Size && carry != 0) {
+		if (data.Size - i != 0 && carry != 0) {
 
-			carry = 0;
-			std::uint8_t value = (std::uint8_t)BytesToWORD(data.Buffer + i, sizeof(std::uint8_t));
-			BytesFromWORD(data.Buffer + i, sizeof(std::uint8_t), value - 1);
-			if (value - 1 >= value)
-				carry = 1;
-
-			i++;
+			WORD value = BytesToWORD((std::uint8_t*)data.Buffer + i, data.Size - i);
+			BytesFromWORD((std::uint8_t*)data.Buffer + i, data.Size - i, value - 1);
 		}
 
 		if (sameSign) {
@@ -408,8 +397,10 @@ namespace Utils {
 
 		bi_type* op1;
 		bi_type* op2;
+		bool shouldCleanup = false;
 		if (first.Size > second.Size) {
 
+			shouldCleanup = true;
 			op1 = first.Buffer;
 			op2 = new bi_type[first.Size];
 			bi_memcpy(op2, first.Size * sizeof(bi_type), second.Buffer, second.Size * sizeof(bi_type));
@@ -432,47 +423,43 @@ namespace Utils {
 		}
 
 		// The operands' size
-		const std::size_t& size = first.Size;
+		const std::size_t size = first.Size;
 
 		// Check if the numbers have the same sign
 		const bool sameSign = BI_SIGN_BUFFER(op1, size) == BI_SIGN_BUFFER(op2, size);
 
 		// First addend sign
-		const bi_type sign1 = BI_SIGN_BUFFER(op1, size);
+		const bi_type op1OriginalSign = BI_SIGN_BUFFER(op1, size);
 
-		const std::size_t sizeAsWords = size / sizeof(WORD);
+		const std::size_t sizeAsWords = (size * sizeof(bi_type)) / sizeof(WORD);
 
 		std::uint8_t carry = 0;
 		std::size_t i = 0;
 		while (i < sizeAsWords) {
 
-			WORD const v1 = BytesToWORD(op1 + i * sizeof(WORD), sizeof(WORD));
-			WORD const v2 = BytesToWORD(op2 + i * sizeof(WORD), sizeof(WORD));
-			WORD value = v1;
+			const WORD v1 = BytesToWORD((std::uint8_t*)op1 + i * sizeof(WORD), sizeof(WORD));
+			const WORD v2 = BytesToWORD((std::uint8_t*)op2 + i * sizeof(WORD), sizeof(WORD));
 			WORD sum = v1 + v2;
-			BytesFromWORD(op1 + i * sizeof(WORD), sizeof(WORD), sum);
-			bool overflow = sum < value;
-			value = sum;
+			bool overflow = sum < v1;
 			BytesFromWORD(op1 + i * sizeof(WORD), sizeof(WORD), sum + carry);
-			carry = (overflow || sum + carry < value) ? 1 : 0;
+			carry = (overflow || sum + carry < sum) ? 1 : 0;
 
 			i++;
 		}
 
 		i *= sizeof(WORD);
-		while (i < size) {
+		if (size - i != 0) {
 
-			std::uint8_t const v1 = (std::uint8_t)BytesToWORD(op1 + i, sizeof(std::uint8_t));
-			std::uint8_t const v2 = (std::uint8_t)BytesToWORD(op2 + i, sizeof(std::uint8_t));
-			std::uint8_t value = v1;
-			std::uint8_t sum = v1 + v2;
-			BytesFromWORD(op1 + i, sizeof(std::uint8_t), sum);
-			bool overflow = sum < value;
-			value = sum;
-			BytesFromWORD(op1 + i, sizeof(std::uint8_t), sum + carry);
-			carry = (overflow || sum + carry < value) ? 1 : 0;
-
-			i++;
+			const WORD v1 = BytesToWORD(op1 + i, size - i);
+			const WORD v2 = BytesToWORD(op2 + i, size - i);
+			WORD sum = v1 + v2;
+			WORD value = sum;
+			sum += carry;
+			BytesFromWORD(op1 + i, size - i, sum);
+			if (IsLittleEndian())
+				carry = ((std::uint8_t*)&sum)[size - i] ? 1 : 0;
+			else
+				carry = ((std::uint8_t*)&sum)[sizeof(WORD) - (size - i)] ? 1 : 0;
 		}
 
 		// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
@@ -482,7 +469,7 @@ namespace Utils {
 		if (sameSign) {
 
 			// ... and the sum result has a different sign from the previous one...
-			if (BI_SIGN_BUFFER(op1, size) != sign1) {
+			if (BI_SIGN_BUFFER(op1, size) != op1OriginalSign) {
 
 				// ... then resize the destination buffer and add the sign at the end
 				Resize(first, size + 1, false);
@@ -490,7 +477,7 @@ namespace Utils {
 			}
 		}
 
-		if (first.Size > second.Size)
+		if (shouldCleanup)
 			delete[] op2;
 	}
 

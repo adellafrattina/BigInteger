@@ -78,6 +78,20 @@ namespace big {
 		}
 	}
 
+	Integer& Integer::operator=(const Integer& other) {
+
+		if (Utils::IsOnStack(other.m_Data))
+			m_Data = Utils::BigIntegerFromWORD(GetSNO(other.m_Data));
+
+		else {
+
+			Utils::Resize(m_Data, other.m_Data.Size, false);
+			Utils::Copy(m_Data, other.m_Data);
+		}
+
+		return *this;
+	}
+
 	Integer::Integer(Integer&& other) noexcept
 		: m_Data(std::move(other.m_Data))
 
@@ -158,6 +172,13 @@ namespace big {
 		Utils::Add(res.m_Data, second.m_Data);
 
 		return res;
+	}
+
+	big::Integer& operator+=(big::Integer& first, const big::Integer& second) {
+
+		Utils::Add(first.m_Data, second.m_Data);
+
+		return first;
 	}
 }
 

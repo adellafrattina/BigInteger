@@ -38,7 +38,7 @@ namespace Utils {
 	/// Performs a runtime check to determine the system endianness
 	/// </summary>
 	/// <returns>True if the system is little-endian, false if it is big-endian</returns>
-	inline bool IsLittleEndian();
+	bool IsLittleEndian();
 
 	/// <summary>
 	/// Checks if the big integer buffer is allocated on the stack
@@ -103,7 +103,7 @@ namespace Utils {
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
 	/// <returns>The word resulted from the first bytes of the specified big integer</returns>
-	inline WORD BigIntegerToWORD(const bi_int& data);
+	WORD BigIntegerToWORD(const bi_int& data);
 
 	/// <summary>
 	/// Converts a word (usually 8 bytes integer) to a big integer.
@@ -111,7 +111,7 @@ namespace Utils {
 	/// </summary>
 	/// <param name="word">The desired word</param>
 	/// <returns>The big integer resulted from the specified word</returns>
-	inline bi_int BigIntegerFromWORD(WORD word);
+	bi_int BigIntegerFromWORD(WORD word);
 
 	/// <summary>
 	/// Converts the given array bytes into a WORD (8 bytes on 64-bit architecture, 4 bytes on 32-bit architecture).
@@ -136,7 +136,7 @@ namespace Utils {
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
 	/// <returns>True if the number is negative, false if not</returns>
-	inline bool IsNegative(const bi_int& data);
+	bool IsNegative(const bi_int& data);
 
 	/// <summary>
 	/// Counts the number of bits that are not considered padding
