@@ -176,7 +176,7 @@ namespace Utils {
 		return (std::size_t)std::ceil((long double)(GetBitSize(n)) / 8.0);
 	}
 
-	 WORD BigIntegerToWORD(const bi_int& data) {
+	WORD BigIntegerToWORD(const bi_int& data) {
 
 		const std::uint8_t* buffer = reinterpret_cast<const std::uint8_t*>(data.Buffer);
 
@@ -194,7 +194,7 @@ namespace Utils {
 		}
 	}
 
-	 bi_int BigIntegerFromWORD(WORD word) {
+	bi_int BigIntegerFromWORD(WORD word) {
 
 		if (IsLittleEndian())
 			return { word };
@@ -246,7 +246,7 @@ namespace Utils {
 		}
 	}
 
-	 bool IsNegative(const bi_int& data) {
+	bool IsNegative(const bi_int& data) {
 
 		return BI_SIGN(data) == BI_MINUS_SIGN;
 	}
