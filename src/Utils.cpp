@@ -1,4 +1,5 @@
 #include <cmath>
+#include <functional>
 
 #include "Utils.hpp"
 
@@ -18,6 +19,13 @@ WORD GetSNO(const bi_int& data) {
 void SetSNO(bi_int& data, WORD sno) {
 
 	data = Utils::BigIntegerFromWORD(sno);
+}
+
+void Reset(bi_int& data) {
+
+	data.m_SNO = 0;
+	data.Size = BI_WORD_SIZE;
+	data.Buffer = reinterpret_cast<bi_type*>(&data.m_SNO);
 }
 
 namespace Utils {
@@ -118,7 +126,7 @@ namespace Utils {
 			dest.Size = src.Size;
 		}
 
-		SetSNO(src, 0);
+		Reset(src);
 	}
 
 	void Clear(bi_int& data) {
@@ -131,7 +139,7 @@ namespace Utils {
 			data.Size = BI_WORD_SIZE;
 		}
 
-		memset(data.Buffer, 0, data.Size);
+		Reset(data);
 	}
 
 	void ShrinkToFit(bi_int& data) {
@@ -481,6 +489,205 @@ namespace Utils {
 			delete[] op2;
 	}
 
+	void Mult(bi_int& first, const bi_int& second) {
+
+		auto CountSignificantBitsU
+		=
+		[](const bi_type* const data, const std::size_t size) {
+
+			std::size_t bitSize = 0;
+			for (std::size_t i = 0; i < size; i++) {
+
+				if (data[size - 1 - i] != 0) {
+
+					const std::size_t index = size - 1 - i;
+					bi_type min = data[index];
+					bitSize = index * 8 + 1;
+					while (min >>= 1)
+						++bitSize;
+					break;
+				}
+			}
+
+			return bitSize == 0 ? 1 : bitSize;
+		};
+
+		std::function<void(const bi_int&, const bi_int&, bi_int&)> Karatsuba;
+		Karatsuba
+		=
+		[&](const bi_int& a, const bi_int& b, bi_int& result) {
+
+			const std::size_t aBitSize = CountSignificantBitsU(a.Buffer, a.Size);
+			const std::size_t bBitSize = CountSignificantBitsU(b.Buffer, b.Size);
+			const std::size_t aSize = std::max((std::size_t)std::ceil((long double)aBitSize / 8.0), sizeof(std::uint32_t));
+			const std::size_t bSize = std::max((std::size_t)std::ceil((long double)bBitSize / 8.0), sizeof(std::uint32_t));
+
+			if (std::max(aSize, bSize) <= sizeof(std::uint32_t)) {
+
+				WORD res = BytesToWORD(a.Buffer, aSize) * BytesToWORD(b.Buffer, bSize);
+				BytesFromWORD(result.Buffer, result.Size, res);
+			}
+
+			else {
+
+				// Unsigned sum. This function will not increase the big integers' size in case of overflow
+				auto AddU
+				=
+				[](bi_type* first, std::size_t first_size, const bi_type* second, std::size_t second_size) {
+
+					bi_type* const op1 = first;
+					const bi_type* const op2 = second;
+
+					// The operand's minimum size
+					const std::size_t minSize = std::min(first_size, second_size);
+
+					// The operand's size as words
+					const std::size_t sizeAsWords = (minSize * sizeof(bi_type)) / sizeof(WORD);
+
+					std::uint8_t carry = 0;
+					std::size_t i = 0;
+					while (i < sizeAsWords) {
+
+						const WORD v1 = BytesToWORD((std::uint8_t*)op1 + i * sizeof(WORD), sizeof(WORD));
+						const WORD v2 = BytesToWORD((std::uint8_t*)op2 + i * sizeof(WORD), sizeof(WORD));
+						const WORD sum = v1 + v2;
+						const bool overflow = sum < v1;
+						BytesFromWORD((std::uint8_t*)op1 + i * sizeof(WORD), sizeof(WORD), sum + carry);
+						carry = (overflow || sum + carry < sum) ? 1 : 0;
+
+						i++;
+					}
+
+					i *= sizeof(WORD);
+					while (i < first_size) {
+
+						const WORD v1 = BytesToWORD((std::uint8_t*)op1 + i, first_size - i);
+						const WORD v2 = i < second_size ? BytesToWORD((std::uint8_t*)op2 + i, second_size - i) : 0;
+						const WORD sum = v1 + v2;
+						const bool overflow = sum < v1;
+						BytesFromWORD((std::uint8_t*)op1 + i, first_size - i, sum + carry);
+						carry = (overflow || sum + carry < sum) ? 1 : 0;
+
+						i += first_size - i > sizeof(WORD) ? sizeof(WORD) : first_size - i;
+					}
+				};
+
+				// Unsigned subtraction (first must be greater or equal to second). This function will not increase the big integers' size in case of overflow
+				auto SubU
+				=
+				[](bi_type* first, std::size_t first_size, const bi_type* second, std::size_t second_size) {
+
+					short borrow = 0;
+					for (std::size_t i = 0; i < first_size; i++) {
+
+						short f = first[i];
+						short s = i < second_size ? second[i] : 0;
+
+						short diff = f - s - borrow;
+
+						if (diff < 0) {
+
+							diff += 256;
+							borrow = 1;
+						}
+
+						else
+							borrow = 0;
+
+						first[i] = (std::uint8_t)diff;
+					}
+				};
+
+				// Split
+				const std::size_t sp = std::max(aBitSize, bBitSize) / 2;
+				const std::size_t minByteSize = (std::size_t)std::ceil((long double)sp / 8.0);
+
+				// A0
+				bi_int a0;
+				Utils::Resize(a0, a.Size, false);
+				bi_memcpy(a0.Buffer, a0.Size * sizeof(bi_type), a.Buffer, minByteSize * sizeof(bi_type));
+				a0.Buffer[minByteSize - 1] &= (BI_MAX_INT >> (minByteSize * 8 - sp));
+
+				// A1
+				bi_int a1;
+				Utils::Resize(a1, a.Size, false);
+				bi_memcpy(a1.Buffer, a1.Size * sizeof(bi_type), a.Buffer, a.Size * sizeof(bi_type));
+				Utils::ShiftRight(a1, sp);
+
+				// B0
+				bi_int b0;
+				Utils::Resize(b0, b.Size, false);
+				bi_memcpy(b0.Buffer, b0.Size * sizeof(bi_type), b.Buffer, minByteSize * sizeof(bi_type));
+				b0.Buffer[minByteSize - 1] &= (BI_MAX_INT >> (minByteSize * 8 - sp));
+
+				// B1
+				bi_int b1;
+				Utils::Resize(b1, b.Size, false);
+				bi_memcpy(b1.Buffer, b1.Size * sizeof(bi_type), b.Buffer, b.Size * sizeof(bi_type));
+				Utils::ShiftRight(b1, sp);
+
+				// K1
+				bi_int k1;
+				Utils::Resize(k1, (std::size_t)std::ceil((long double)(CountSignificantBitsU(a1.Buffer, a1.Size) + CountSignificantBitsU(b1.Buffer, b1.Size)) / 8.0) + (std::size_t)std::ceil((long double)(2 * sp) / 8.0), false);
+				Karatsuba(a1, b1, k1);
+
+				// K2
+				bi_int k2;
+				AddU(a1.Buffer, a1.Size, a0.Buffer, a0.Size);
+				AddU(b1.Buffer, b1.Size, b0.Buffer, b0.Size);
+				Utils::Resize(k2, (std::size_t)std::ceil((long double)(CountSignificantBitsU(a1.Buffer, a1.Size) + CountSignificantBitsU(b1.Buffer, b1.Size)) / 8.0) + (std::size_t)std::ceil((long double)sp / 8.0), false);
+				Karatsuba(a1, b1, k2);
+
+				// K3
+				bi_int k3;
+				Utils::Resize(k3, (std::size_t)std::ceil((long double)(CountSignificantBitsU(a0.Buffer, a0.Size) + CountSignificantBitsU(b0.Buffer, b0.Size)) / 8.0), false);
+				Karatsuba(a0, b0, k3);
+
+				SubU(k2.Buffer, k2.Size, k3.Buffer, k3.Size);
+				SubU(k2.Buffer, k2.Size, k1.Buffer, k1.Size);
+
+				Utils::ShiftLeft(k1, 2 * sp);
+				Utils::ShiftLeft(k2, sp);
+
+				AddU(result.Buffer, result.Size, k1.Buffer, k1.Size);
+				AddU(result.Buffer, result.Size, k2.Buffer, k2.Size);
+				AddU(result.Buffer, result.Size, k3.Buffer, k3.Size);
+			}
+		};
+
+		std::size_t size = std::max(first.Size, second.Size);
+
+		// Op1
+		bi_int op1;
+		Utils::Resize(op1, size, false);
+		Utils::Copy(op1, first);
+		const bi_type op1Sign = BI_SIGN(op1);
+		Utils::Abs(op1);
+
+		// Op2
+		bi_int op2;
+		Utils::Resize(op2, size, false);
+		Utils::Copy(op2, second);
+		const bi_type op2Sign = BI_SIGN(op2);
+		Utils::Abs(op2);
+
+		const std::size_t firstBitSize = CountSignificantBitsU(op1.Buffer, op1.Size);
+		const std::size_t secondBitSize = CountSignificantBitsU(op2.Buffer, op2.Size);
+		const std::size_t resultSize = std::max(size, (std::size_t)std::ceil((long double)(firstBitSize + secondBitSize) / 8.0));
+
+		// Karatsuba algorithm
+		bi_int result;
+		Utils::Resize(result, resultSize, false);
+		Karatsuba(op1, op2, result);
+
+		// Sign
+		if (op1Sign ^ op2Sign)
+			Negate(result);
+
+		Utils::Clear(first);
+		Utils::Move(first, result);
+	}
+
 	// --- Bitwise functions ---
 
 	void Not(bi_int& data) {
@@ -811,7 +1018,7 @@ namespace Utils {
 
 		// Set up data
 
-		const std::size_t dataSize = (std::size_t)std::ceil(std::ceil((long double)strLength * log2(10.0l)) / (sizeof(bi_type) * 8.0l));
+		const std::size_t dataSize = (std::size_t)std::ceil(std::ceil((long double)strLength * log2(10.0l) + 1) / (sizeof(bi_type) * 8.0l));
 
 		if (data.Size < dataSize) {
 

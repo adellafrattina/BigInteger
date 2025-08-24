@@ -180,6 +180,23 @@ namespace big {
 
 		return first;
 	}
+
+	big::Integer operator*(const big::Integer& first, const big::Integer& second) {
+
+		big::Integer res;
+		Utils::Resize(res.m_Data, std::max(first.m_Data.Size, second.m_Data.Size), false);
+		Utils::Copy(res.m_Data, first.m_Data);
+		Utils::Mult(res.m_Data, second.m_Data);
+
+		return res;
+	}
+
+	big::Integer& operator*=(big::Integer& first, const big::Integer& second) {
+
+		Utils::Mult(first.m_Data, second.m_Data);
+
+		return first;
+	}
 }
 
 // --- Big integer structure ---

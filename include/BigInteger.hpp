@@ -6,7 +6,7 @@
 #include <limits>
 
 #undef BI_PRINT_DEBUG_INFO
-#define BI_PRINT_DEBUG_INFO
+//#define BI_PRINT_DEBUG_INFO
 
 #ifndef BI_STATIC
 	#if defined(_WIN32)
@@ -93,6 +93,11 @@ public:
 	/// <param name="sno">The desired value for the SNO</param>
 	friend void SetSNO(bi_int& data, WORD sno);
 
+	/// <summary>
+	/// Resets the big integer to the default value
+	/// </summary>
+	friend void Reset(bi_int& data);
+
 private:
 
 	// Small Number Optimization
@@ -137,6 +142,9 @@ namespace big {
 
 		friend BI_API big::Integer operator+(const big::Integer& first, const big::Integer& second);
 		friend BI_API big::Integer& operator+=(big::Integer& first, const big::Integer& second);
+
+		friend BI_API big::Integer operator*(const big::Integer& first, const big::Integer& second);
+		friend BI_API big::Integer& operator*=(big::Integer& first, const big::Integer& second);
 
 	private:
 
