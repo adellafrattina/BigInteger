@@ -7,10 +7,7 @@
 
 namespace big {
 
-	Integer::Integer(std::int64_t n, std::size_t size_in_bytes)
-		: m_Data()
-
-	{
+	void Integer::InitFromInt(std::int64_t n, std::size_t size_in_bytes) {
 
 		if (size_in_bytes > sizeof(WORD)) {
 

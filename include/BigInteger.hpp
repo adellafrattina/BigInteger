@@ -57,7 +57,7 @@ typedef std::uint8_t bi_type;
 typedef std::uint64_t WORD;
 
 // The big integer structure
-class bi_int {
+class BI_API bi_int {
 
 public:
 
@@ -114,10 +114,19 @@ namespace big {
 
 	public:
 
-		Integer(std::int64_t n, std::size_t size_in_bytes = 0);
+		template <
+			typename T,
+			typename = typename std::enable_if<std::is_integral<T>::value>::type
+		>
+		Integer(T n, std::size_t size_in_bytes = 0) {
+
+			InitFromInt(n, size_in_bytes);
+		}
+
 		Integer(const std::string& str, std::size_t size_in_bytes = 0);
 		Integer(const char* str, std::size_t size_in_bytes = 0);
 		Integer(const Integer& other, std::size_t size_in_bytes = 0);
+		Integer(std::nullptr_t, std::size_t size_in_bytes = 0) = delete;
 		Integer& operator=(const Integer& other);
 		Integer(Integer&& other) noexcept;
 		Integer();
@@ -147,6 +156,8 @@ namespace big {
 		friend BI_API big::Integer& operator*=(big::Integer& first, const big::Integer& second);
 
 	private:
+
+		void InitFromInt(std::int64_t n, std::size_t size_in_bytes);
 
 		// Normal big integer data structure
 		bi_int m_Data;
