@@ -6,7 +6,7 @@
 #include <limits>
 
 #undef BI_PRINT_DEBUG_INFO
-//#define BI_PRINT_DEBUG_INFO
+#define BI_PRINT_DEBUG_INFO
 
 #ifndef BI_STATIC
 	#if defined(_WIN32)
@@ -50,11 +50,11 @@
 	#define PRINT(fmt, ...) g_biprintfln(fmt, __TIME__, (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)), __LINE__, __VA_ARGS__)
 #endif
 
-// The big integer buffer's type
-typedef std::uint8_t bi_type;
-
 // The operating system word
 typedef std::uint64_t WORD;
+
+#define BI_PLUS_SIGN 0
+#define BI_MINUS_SIGN std::numeric_limits<bool>::max()
 
 // The big integer structure
 class BI_API bi_int {
@@ -62,8 +62,8 @@ class BI_API bi_int {
 public:
 
 	bi_int();
-	bi_int(WORD sno);
-	bi_int(bi_type* buffer, std::size_t size);
+	bi_int(WORD sno, bool sign);
+	bi_int(WORD* buffer, std::size_t size, bool sign);
 	bi_int(const bi_int& other);
 	bi_int(bi_int&& other) noexcept;
 	bi_int& operator=(const bi_int& other);
@@ -71,42 +71,17 @@ public:
 	~bi_int();
 
 	// The big integer buffer
-	bi_type* Buffer;
+	WORD* Buffer;
 
 	// The buffer size
 	std::size_t Size;
 
-	/// <summary>
-	/// Gets the Small Number Optimization value in an endianness friendly way.
-	/// The value zero could also mean that the big integer value was allocated on the heap and not on the stack, so the SNO is invalid
-	/// </summary>
-	/// <param name="data">The desired big integer</param>
-	/// <returns>The Small Number Optimization value</returns>
-	friend WORD GetSNO(const bi_int& data);
-
-	/// <summary>
-	/// Sets the Small Number Optimization value in an endianness friendly way.
-	/// The provided big integer should not have its buffer allocated on the heap.
-	/// To be sure, check that the big integer size is the size of a WORD over the size of bi_type
-	/// </summary>
-	/// <param name="data">The desired data</param>
-	/// <param name="sno">The desired value for the SNO</param>
-	friend void SetSNO(bi_int& data, WORD sno);
-
-	/// <summary>
-	/// Resets the big integer to the default value
-	/// </summary>
-	friend void Reset(bi_int& data);
-
-private:
+	// The big integer sign
+	bool Sign;
 
 	// Small Number Optimization
-	WORD m_SNO = 0;
+	WORD m_SNO;
 };
-
-#define BI_MAX_INT std::numeric_limits<bi_type>::max()
-#define BI_PLUS_SIGN 0
-#define BI_MINUS_SIGN BI_MAX_INT
 
 namespace big {
 
@@ -118,15 +93,18 @@ namespace big {
 			typename T,
 			typename = typename std::enable_if<std::is_integral<T>::value>::type
 		>
-		Integer(T n, std::size_t size_in_bytes = 0) {
+		Integer(T n, std::size_t size_in_bits = 0) {
 
-			InitFromInt(n, size_in_bytes);
+			if ((std::int64_t)n < 0)
+				InitFromInt(-(std::int64_t)n, BI_MINUS_SIGN, size_in_bits);
+			else
+				InitFromInt(n, BI_PLUS_SIGN, size_in_bits);
 		}
 
-		Integer(const std::string& str, std::size_t size_in_bytes = 0);
-		Integer(const char* str, std::size_t size_in_bytes = 0);
-		Integer(const Integer& other, std::size_t size_in_bytes = 0);
-		Integer(std::nullptr_t, std::size_t size_in_bytes = 0) = delete;
+		Integer(const std::string& str, std::size_t size_in_bits = 0);
+		Integer(const char* str, std::size_t size_in_bits = 0);
+		Integer(const Integer& other, std::size_t size_in_bits = 0);
+		Integer(std::nullptr_t, std::size_t size_in_bits = 0) = delete;
 		Integer& operator=(const Integer& other);
 		Integer(Integer&& other) noexcept;
 		Integer();
@@ -138,7 +116,7 @@ namespace big {
 		const void* Data();
 		std::size_t Size() const;
 		std::size_t SizeInBytes() const;
-		void Resize(std::size_t size_in_bytes, bool ext_sign = true);
+		void Resize(std::size_t size_in_bytes);
 		void ShrinkToFit();
 		void Clear();
 
@@ -157,7 +135,7 @@ namespace big {
 
 	private:
 
-		void InitFromInt(std::int64_t n, std::size_t size_in_bytes);
+		void InitFromInt(WORD n, bool sign, std::size_t size_in_bits);
 
 		// Normal big integer data structure
 		bi_int m_Data;
