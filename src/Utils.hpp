@@ -193,7 +193,7 @@ namespace Utils {
 	void Add(bi_int& first, const bi_int& second);
 
 	/// <summary>
-	/// Multiplies the first big integer with the second one. The result is stored in the first one. The first big integer buffer could be resized if
+	/// Multiplies the first big integer by the second one. The result is stored in the first one. The first big integer buffer could be resized if
 	/// the second one is bigger or if overflow occurs
 	/// </summary>
 	/// <param name="first">The first factor, where the result will be stored</param>

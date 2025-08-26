@@ -667,15 +667,15 @@ namespace Utils {
 		std::size_t size = std::max(first.Size, second.Size);
 
 		// Op1
-		const bi_type op1Sign = BI_SIGN(first);
-		Utils::Resize(first, size);
-		Utils::Abs(first);
 		bi_int& op1 = first;
+		//Utils::Resize(first, first.Size);
+		const bi_type op1Sign = BI_SIGN(first);
+		Utils::Abs(first);
 
 		// Op2
 		bi_int op2;
-		Utils::Resize(op2, size, false);
-		Utils::Copy(op2, second);
+		Utils::Resize(op2, second.Size, false);
+		Utils::Copy(op2, second, 0, false);
 		const bi_type op2Sign = BI_SIGN(op2);
 		Utils::Abs(op2);
 
