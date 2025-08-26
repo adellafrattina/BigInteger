@@ -136,11 +136,16 @@ namespace big {
 		friend BI_API const big::Integer& operator--(big::Integer& n);
 		friend BI_API big::Integer operator--(big::Integer& n, int);
 
-		friend BI_API const big::Integer operator+(const big::Integer& first, const big::Integer& second);
-		friend BI_API const big::Integer& operator+=(big::Integer& first, const big::Integer& second);
+		friend BI_API const big::Integer& operator+(big::Integer& n);
+		friend BI_API const big::Integer operator+(const big::Integer& a, const big::Integer& b);
+		friend BI_API const big::Integer& operator+=(big::Integer& a, const big::Integer& b);
 
-		friend BI_API const big::Integer operator*(const big::Integer& first, const big::Integer& second);
-		friend BI_API const big::Integer& operator*=(big::Integer& first, const big::Integer& second);
+		friend BI_API const big::Integer& operator-(big::Integer& n);
+		friend BI_API const big::Integer operator-(const big::Integer& a, const big::Integer& b);
+		friend BI_API const big::Integer& operator-=(big::Integer& a, const big::Integer& b);
+
+		friend BI_API const big::Integer operator*(const big::Integer& a, const big::Integer& b);
+		friend BI_API const big::Integer& operator*=(big::Integer& a, const big::Integer& b);
 
 	private:
 

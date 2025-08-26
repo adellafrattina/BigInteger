@@ -61,7 +61,7 @@ namespace big {
 		capacity = (std::size_t)std::ceil((long double)capacity / (sizeof(WORD) * 8));
 		if (capacity > 1) {
 
-			Utils::Resize(m_Data, capacity + other.m_Data.Size);
+			Utils::Resize(m_Data, capacity + other.m_Data.Capacity);
 			Utils::Copy(m_Data, other.m_Data);
 		}
 
@@ -72,7 +72,7 @@ namespace big {
 
 			else {
 
-				Utils::Resize(m_Data, other.m_Data.Size);
+				Utils::Resize(m_Data, other.m_Data.Capacity);
 				Utils::Copy(m_Data, other.m_Data);
 			}
 		}
@@ -85,7 +85,7 @@ namespace big {
 
 		else {
 
-			Utils::Resize(m_Data, other.m_Data.Size);
+			Utils::Resize(m_Data, other.m_Data.Capacity);
 			Utils::Copy(m_Data, other.m_Data);
 		}
 
@@ -193,6 +193,34 @@ namespace big {
 		Utils::Decrement(n.m_Data);
 
 		return cpy;
+	}
+
+	const big::Integer& operator+(big::Integer& n) {
+
+		return n;
+	}
+
+	const big::Integer operator+(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer num(a);
+		Utils::Add(num.m_Data, b.m_Data);
+
+		return num;
+	}
+
+	const big::Integer& operator-(big::Integer& n) {
+
+		Utils::Negate(n.m_Data);
+
+		return n;
+	}
+
+	const big::Integer operator-(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer num(a);
+		Utils::Sub(num.m_Data, b.m_Data);
+
+		return num;
 	}
 }
 

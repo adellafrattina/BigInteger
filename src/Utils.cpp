@@ -63,6 +63,8 @@ namespace Utils {
 	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest, const std::size_t offset_src) {
 
 		bi_memcpy(dest.Buffer + offset_dest, dest.Capacity * sizeof(WORD), src.Buffer + offset_src, src.Capacity * sizeof(WORD));
+		dest.Sign = src.Sign;
+		dest.Size = src.Size;
 	}
 
 	void Move(bi_int& dest, bi_int& src) {
@@ -75,13 +77,15 @@ namespace Utils {
 
 		else {
 
+			Utils::Clear(dest);
+
 			dest.Buffer = src.Buffer;
+			dest.Sign = src.Sign;
 			dest.Size = src.Size;
 			dest.Capacity = src.Capacity;
 
 			src.SNO = 0;
 			src.Sign = BI_PLUS_SIGN;
-			delete[] src.Buffer;
 			src.Buffer = &src.SNO;
 			src.Size = 1;
 			src.Capacity = 1;
@@ -127,7 +131,7 @@ namespace Utils {
 
 	// --- Mathematical functions ---
 
-	int Compare(const bi_int& first, const bi_int& second) {
+	int Compare(const bi_int& a, const bi_int& b) {
 
 		// The two numbers are identical
 		constexpr int EQUAL = 0;
@@ -139,13 +143,13 @@ namespace Utils {
 		constexpr int GREATER = 1;
 
 		// If the first one is positive and the second one is negative, then return 1, else return -1
-		if (first.Sign < second.Sign)
+		if (a.Sign < b.Sign)
 			return GREATER;
-		else if (first.Sign > second.Sign)
+		else if (a.Sign > b.Sign)
 			return LESS;
 
-		const std::size_t firstBitSize = CountSignificantBits(first);
-		const std::size_t secondBitSize = CountSignificantBits(second);
+		const std::size_t firstBitSize = CountSignificantBits(a);
+		const std::size_t secondBitSize = CountSignificantBits(b);
 
 		// If the number of significant bits in the first number is higher than the second one, then return 1, else return -1
 		if (firstBitSize > secondBitSize)
@@ -153,14 +157,49 @@ namespace Utils {
 		else if (firstBitSize < secondBitSize)
 			return LESS;
 
-		std::size_t size = std::min(first.Size, second.Size) - 1;
+		std::size_t size = std::min(a.Size, b.Size) - 1;
 
 		// Check every word in the two numbers
 		do {
 
-			if (first.Buffer[size] > second.Buffer[size])
+			if (a.Buffer[size] > b.Buffer[size])
 				return GREATER;
-			else if (first.Buffer[size] < second.Buffer[size])
+			else if (a.Buffer[size] < b.Buffer[size])
+				return LESS;
+
+		} while (size--);
+
+		return EQUAL;
+	}
+
+	int CompareU(const bi_int& a, const bi_int& b) {
+
+		// The two numbers are identical
+		constexpr int EQUAL = 0;
+
+		// The first number is less than the second one
+		constexpr int LESS = -1;
+
+		// The first number is greater than the second one
+		constexpr int GREATER = 1;
+
+		const std::size_t firstBitSize = CountSignificantBits(a);
+		const std::size_t secondBitSize = CountSignificantBits(b);
+
+		// If the number of significant bits in the first number is higher than the second one, then return 1, else return -1
+		if (firstBitSize > secondBitSize)
+			return GREATER;
+		else if (firstBitSize < secondBitSize)
+			return LESS;
+
+		std::size_t size = std::min(a.Size, b.Size) - 1;
+
+		// Check every word in the two numbers
+		do {
+
+			if (a.Buffer[size] > b.Buffer[size])
+				return GREATER;
+			else if (a.Buffer[size] < b.Buffer[size])
 				return LESS;
 
 		} while (size--);
@@ -185,16 +224,13 @@ namespace Utils {
 		if (data.Sign == BI_PLUS_SIGN) {
 
 			WORD carry = 1;
-			std::size_t i = 0;
-			while (i < data.Size && carry == 1) {
+			for (std::size_t i = 0; i < data.Size && carry == 1; i++) {
 
 				carry = 0;
 				const WORD v = data.Buffer[i];
 				++data.Buffer[i];
 				if (data.Buffer[i] < v)
 					carry = 1;
-
-				i++;
 			}
 
 			if (carry) {
@@ -217,16 +253,13 @@ namespace Utils {
 			else {
 
 				WORD carry = 1;
-				std::size_t i = 0;
-				while (i < data.Size && carry == 1) {
+				for (std::size_t i = 0; i < data.Size && carry == 1; i++) {
 
 					carry = 0;
 					const WORD v = data.Buffer[i];
 					--data.Buffer[i];
 					if (data.Buffer[i] > v)
 						carry = 1;
-
-					i++;
 				}
 			}
 		}
@@ -246,16 +279,13 @@ namespace Utils {
 			else {
 
 				WORD carry = 1;
-				std::size_t i = 0;
-				while (i < data.Size && carry == 1) {
+				for (std::size_t i = 0; i < data.Size && carry == 1; i++) {
 
 					carry = 0;
 					const WORD v = data.Buffer[i];
 					--data.Buffer[i];
 					if (data.Buffer[i] > v)
 						carry = 1;
-
-					i++;
 				}
 			}
 		}
@@ -263,8 +293,7 @@ namespace Utils {
 		else {
 
 			WORD carry = 1;
-			std::size_t i = 0;
-			while (i < data.Size && carry == 1) {
+			for (std::size_t i = 0; i < data.Size && carry == 1; i++) {
 
 				carry = 0;
 				const WORD v = data.Buffer[i];
@@ -285,167 +314,104 @@ namespace Utils {
 		}
 	}
 
-//
-//	void Increment(bi_int& data) {
-//
-//		const bool sameSign = BI_SIGN(data) == BI_PLUS_SIGN;
-//		const std::size_t sizeAsWords = data.Size / sizeof(WORD);
-//
-//		std::uint8_t carry = 1;
-//		std::size_t i = 0;
-//		while (i < sizeAsWords && carry != 0) {
-//
-//			carry = 0;
-//			WORD value = BytesToWORD((std::uint8_t*)data.Buffer + i * sizeof(WORD), sizeof(WORD));
-//			BytesFromWORD((std::uint8_t*)data.Buffer + i * sizeof(WORD), sizeof(WORD), value + 1);
-//			if (value + 1 <= value)
-//				carry = 1;
-//
-//			i++;
-//		}
-//
-//		i *= sizeof(WORD);
-//		if (data.Size - i != 0 && carry != 0) {
-//
-//			WORD value = BytesToWORD((std::uint8_t*)data.Buffer + i, data.Size - i);
-//			BytesFromWORD((std::uint8_t*)data.Buffer + i, data.Size - i, value + 1);
-//		}
-//
-//		if (sameSign) {
-//
-//			if (BI_SIGN(data) != BI_PLUS_SIGN) {
-//
-//				Resize(data, data.Size + 1, false);
-//				data.Buffer[data.Size - 1] = BI_PLUS_SIGN;
-//			}
-//		}
-//	}
-//
-//	void Decrement(bi_int& data) {
-//
-//		const bool sameSign = BI_SIGN(data) == BI_MINUS_SIGN;
-//		const std::size_t sizeAsWords = data.Size / sizeof(WORD);
-//
-//		std::uint8_t carry = 1;
-//		std::size_t i = 0;
-//		while (i < sizeAsWords && carry != 0) {
-//
-//			carry = 0;
-//			WORD value = BytesToWORD((std::uint8_t*)data.Buffer + i * sizeof(WORD), sizeof(WORD));
-//			BytesFromWORD((std::uint8_t*)data.Buffer + i * sizeof(WORD), sizeof(WORD), value - 1);
-//			if (value - 1 >= value)
-//				carry = 1;
-//
-//			i++;
-//		}
-//
-//		i *= sizeof(WORD);
-//		if (data.Size - i != 0 && carry != 0) {
-//
-//			WORD value = BytesToWORD((std::uint8_t*)data.Buffer + i, data.Size - i);
-//			BytesFromWORD((std::uint8_t*)data.Buffer + i, data.Size - i, value - 1);
-//		}
-//
-//		if (sameSign) {
-//
-//			if (BI_SIGN(data) != BI_MINUS_SIGN) {
-//
-//				Resize(data, data.Size + 1, false);
-//				data.Buffer[data.Size - 1] = BI_MINUS_SIGN;
-//			}
-//		}
-//	}
-//
-//	void Add(bi_int& first, const bi_int& second) {
-//
-//		// Set up the operands to be of the same size
-//
-//		bi_type* op1;
-//		bi_type* op2;
-//		bool shouldCleanup = false;
-//		if (first.Size > second.Size) {
-//
-//			shouldCleanup = true;
-//			op1 = first.Buffer;
-//			op2 = new bi_type[first.Size];
-//			bi_memcpy(op2, first.Size * sizeof(bi_type), second.Buffer, second.Size * sizeof(bi_type));
-//			const bi_type sign = BI_SIGN(second);
-//			for (std::size_t i = second.Size; i < first.Size; i++)
-//				op2[i] = sign;
-//		}
-//
-//		else if (first.Size < second.Size) {
-//
-//			op2 = second.Buffer;
-//			Resize(first, second.Size);
-//			op1 = first.Buffer;
-//		}
-//
-//		else {
-//
-//			op1 = first.Buffer;
-//			op2 = second.Buffer;
-//		}
-//
-//		// The operands' size
-//		const std::size_t size = first.Size;
-//
-//		// Check if the numbers have the same sign
-//		const bool sameSign = BI_SIGN_BUFFER(op1, size) == BI_SIGN_BUFFER(op2, size);
-//
-//		// First addend sign
-//		const bi_type op1OriginalSign = BI_SIGN_BUFFER(op1, size);
-//
-//		const std::size_t sizeAsWords = (size * sizeof(bi_type)) / sizeof(WORD);
-//
-//		std::uint8_t carry = 0;
-//		std::size_t i = 0;
-//		while (i < sizeAsWords) {
-//
-//			const WORD v1 = BytesToWORD((std::uint8_t*)op1 + i * sizeof(WORD), sizeof(WORD));
-//			const WORD v2 = BytesToWORD((std::uint8_t*)op2 + i * sizeof(WORD), sizeof(WORD));
-//			WORD sum = v1 + v2;
-//			bool overflow = sum < v1;
-//			BytesFromWORD(op1 + i * sizeof(WORD), sizeof(WORD), sum + carry);
-//			carry = (overflow || sum + carry < sum) ? 1 : 0;
-//
-//			i++;
-//		}
-//
-//		i *= sizeof(WORD);
-//		if (size - i != 0) {
-//
-//			const WORD v1 = BytesToWORD(op1 + i, size - i);
-//			const WORD v2 = BytesToWORD(op2 + i, size - i);
-//			WORD sum = v1 + v2;
-//			WORD value = sum;
-//			sum += carry;
-//			BytesFromWORD(op1 + i, size - i, sum);
-//			if (IsLittleEndian())
-//				carry = ((std::uint8_t*)&sum)[size - i] ? 1 : 0;
-//			else
-//				carry = ((std::uint8_t*)&sum)[sizeof(WORD) - (size - i)] ? 1 : 0;
-//		}
-//
-//		// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
-//		// The logic behind this code is the following:
-//
-//		// If the 2 big integers had the same sign at the beginning...
-//		if (sameSign) {
-//
-//			// ... and the sum result has a different sign from the previous one...
-//			if (BI_SIGN_BUFFER(op1, size) != op1OriginalSign) {
-//
-//				// ... then resize the destination buffer and add the sign at the end
-//				Resize(first, size + 1, false);
-//				first.Buffer[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
-//			}
-//		}
-//
-//		if (shouldCleanup)
-//			delete[] op2;
-//	}
-//
+	void Add(bi_int& a, const bi_int& b) {
+
+		if (a.Sign == b.Sign)
+			AddU(a, b);
+
+		else {
+
+			int cmp = CompareU(a, b);
+
+			if (cmp > 0) {
+
+				SubU(a, b);
+			}
+
+			else if (cmp < 0) {
+
+				bi_int c = b;
+				SubU(c, a);
+				Utils::Move(a, c);
+			}
+
+			else {
+
+				memset(a.Buffer, 0, a.Size * sizeof(WORD));
+			}
+		}
+	}
+
+	void AddU(bi_int& a, const bi_int& b) {
+
+		std::size_t size = std::max(a.Size, b.Size);
+		if (a.Capacity < size)
+			Utils::Resize(a, size);
+		a.Size = size;
+
+		WORD carry = 0;
+		for (std::size_t i = 0; i < size; i++) {
+
+			WORD sum = a.Buffer[i] + (i < b.Size ? b.Buffer[i] : 0);
+			bool overflow = sum < a.Buffer[i];
+			a.Buffer[i] = sum + carry;
+			carry = (overflow || a.Buffer[i] < sum) ? 1 : 0;
+		}
+
+		if (carry != 0) {
+
+			if (a.Size + 1 > a.Capacity)
+				Utils::Resize(a, a.Size + 1);
+			a.Buffer[a.Size] = 1;
+			++a.Size;
+		}
+	}
+
+	void Sub(bi_int& a, const bi_int& b) {
+
+		if (a.Sign != b.Sign)
+			AddU(a, b);
+
+		else {
+
+			int cmp = CompareU(a, b);
+
+			if (cmp > 0) {
+
+				SubU(a, b);
+			}
+
+			else if (cmp < 0) {
+
+				bi_int c = b;
+				SubU(c, a);
+				Utils::Move(a, c);
+				a.Sign = BI_MINUS_SIGN;
+			}
+
+			else {
+
+				memset(a.Buffer, 0, a.Size * sizeof(WORD));
+			}
+		}
+	}
+
+	void SubU(bi_int& a, const bi_int& b) {
+
+		// @TODO: ASSERT THAT a.Size > b.Size and Compare(a, b) > 1 || Compare(a, b) == 0
+
+		std::int64_t borrow = 0;
+		for (std::size_t i = 0; i < a.Size; i++) {
+
+			const WORD& ai = a.Buffer[i];
+			const WORD& bi = i < b.Size ? b.Buffer[i] : 0;
+
+			WORD temp = ai - bi - borrow;
+			borrow = (ai < bi + borrow) || (bi + borrow < bi);
+			a.Buffer[i] = temp;
+		}
+	}
+
 //	void Mult(bi_int& first, const bi_int& second) {
 //
 //		auto CountSignificantBitsU

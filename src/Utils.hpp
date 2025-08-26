@@ -91,14 +91,26 @@ namespace Utils {
 	/// <summary>
 	/// Compares the two given big integers
 	/// </summary>
-	/// <param name="first">The first big integer</param>
-	/// <param name="second">The second big integer</param>
+	/// <param name="a">The first big integer</param>
+	/// <param name="b">The second big integer</param>
 	/// <returns>
 	/// A number greater than zero if the first number is bigger than the second one.
 	/// A number smaller than zero if the first number is smaller than the second one.
 	/// Zero if the two numbers are equal
 	/// </returns>
-	int Compare(const bi_int& first, const bi_int& second);
+	int Compare(const bi_int& a, const bi_int& b);
+
+	/// <summary>
+	/// Compares the two given big integers' magnitude
+	/// </summary>
+	/// <param name="a">The first big integer</param>
+	/// <param name="b">The second big integer</param>
+	/// <returns>
+	/// A number greater than zero if the first number is bigger than the second one.
+	/// A number smaller than zero if the first number is smaller than the second one.
+	/// Zero if the two numbers are equal
+	/// </returns>
+	int CompareU(const bi_int& a, const bi_int& b);
 
 	/// <summary>
 	/// Negates the big integer. If the big integer was positive, it will became negative. If it was negative, it will become positive
@@ -123,6 +135,38 @@ namespace Utils {
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
 	void Decrement(bi_int& data);
+
+	/// <summary>
+	/// Sums the first big integer with the second one. The result is stored in the first one. The first big integer buffer could be resized if
+	/// the second one is bigger or if overflow occurs
+	/// </summary>
+	/// <param name="a">The first addend, where the result will be stored</param>
+	/// <param name="b">The second addend</param>
+	void Add(bi_int& a, const bi_int& b);
+
+	/// <summary>
+	/// Sums the first big integer's magnitude with the second one (no sign handle). The result is stored in the first one. The first big integer buffer could be resized if
+	/// the second one is bigger or if overflow occurs
+	/// </summary>
+	/// <param name="a">The first addend, where the result will be stored</param>
+	/// <param name="b">The second addend</param>
+	void AddU(bi_int& a, const bi_int& b);
+
+	/// <summary>
+	/// Subtracts the first big integer with the second one. The result is stored in the first one. The first big integer buffer could be resized if
+	/// the second one is bigger or if overflow occurs
+	/// </summary>
+	/// <param name="a">The minuend and where the result will be stored</param>
+	/// <param name="b">The subtrahend</param>
+	void Sub(bi_int& a, const bi_int& b);
+
+	/// <summary>
+	/// Subtracts the first big integer's magnitude with the second one (no sign handle). The first one must be greater or equal to the second one. The result is stored in the first one. The first big integer buffer could be resized if
+	/// the second one is bigger or if overflow occurs
+	/// </summary>
+	/// <param name="a">The minuend and where the result will be stored</param>
+	/// <param name="b">The subtrahend</param>
+	void SubU(bi_int& a, const bi_int& b);
 
 	// --- Bitwise functions ---
 
