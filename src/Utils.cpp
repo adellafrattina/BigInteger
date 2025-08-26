@@ -3,31 +3,6 @@
 
 #include "Utils.hpp"
 
-//#undef BI_WORD_SIZE
-//#define BI_WORD_SIZE (sizeof(WORD) / sizeof(bi_type))
-
-//#undef BI_SIGN_BUFFER
-//#define BI_SIGN_BUFFER(b, s) ((b[s - 1] & ((bi_type)1 << (sizeof(bi_type) * 8 - 1))) ? BI_MINUS_SIGN : BI_PLUS_SIGN)
-//#undef BI_SIGN
-//#define BI_SIGN(x) BI_SIGN_BUFFER(x.Buffer, x.Size)
-//
-//WORD GetSNO(const bi_int& data) {
-//
-//	return Utils::BigIntegerToWORD(data);
-//}
-//
-//void SetSNO(bi_int& data, WORD sno) {
-//
-//	data = Utils::BigIntegerFromWORD(sno);
-//}
-//
-//void Reset(bi_int& data) {
-//
-//	data.m_SNO = 0;
-//	data.Size = BI_WORD_SIZE;
-//	data.Buffer = reinterpret_cast<bi_type*>(&data.m_SNO);
-//}
-//
 namespace Utils {
 
 	// --- Debug functions ---
@@ -47,33 +22,20 @@ namespace Utils {
 	}
 
 	// --- Basic functions ---
-//
-//	 bool IsLittleEndian() {
-//
-//		std::uint16_t n = 1;
-//		std::uint8_t* ptr = (std::uint8_t*)&n;
-//
-//		return ptr[0] == 1;
-//	}
 
-	bool IsOnStack(const bi_int& data) {
+	void Resize(bi_int& data, std::size_t new_capacity) {
 
-		return data.Size == 1;
-	}
-
-	void Resize(bi_int& data, std::size_t new_size) {
-
-		const std::size_t old_size = data.Size;
-		new_size = new_size <= 1 ? 1 : new_size;
+		const std::size_t old_capacity = data.Capacity;
+		new_capacity = new_capacity <= 1 ? 1 : new_capacity;
 
 		// There is no point in executing a resize if both sizes are equal
-		if (old_size == new_size)
+		if (old_capacity == new_capacity)
 			return;
 
-		PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data.Buffer, old_size, new_size);
+		PRINT("Resize called (data: %p, old_capacity: %zu, new_capacity: %zu)", data.Buffer, old_capacity, new_capacity);
 
 		// This means that the big integer buffer was originally allocated on the heap, but now it will be allocated on the stack
-		if (new_size == 1) {
+		if (new_capacity == 1) {
 
 			WORD* tmp = data.Buffer; // Data was allocated on the heap
 			data = bi_int(*data.Buffer, data.Sign); //SetSNO(data, BigIntegerToWORD(data)); // Allocate on the stack
@@ -84,22 +46,23 @@ namespace Utils {
 		else {
 
 			WORD* tmp = data.Buffer; // Previous allocated data
-			data.Buffer = new WORD[new_size]; // Allocate on the heap
-			memset(data.Buffer, 0, new_size * sizeof(WORD));
+			data.Buffer = new WORD[new_capacity]; // Allocate on the heap
+			memset(data.Buffer, 0, new_capacity * sizeof(WORD));
 
 			// Copy the old data
-			bi_memcpy(data.Buffer, new_size * sizeof(WORD), tmp, std::min(old_size, new_size) * sizeof(WORD));
-			data.Size = new_size;
+			bi_memcpy(data.Buffer, new_capacity * sizeof(WORD), tmp, std::min(old_capacity, new_capacity) * sizeof(WORD));
+			data.Capacity = new_capacity;
+			data.Size = std::min(data.Size, data.Capacity);
 
 			// If the big integer buffer was allocated on the heap, delete the old memory
-			if (old_size > 1)
+			if (old_capacity > 1)
 				delete[] tmp;
 		}
 	}
 
 	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest, const std::size_t offset_src) {
 
-		bi_memcpy(dest.Buffer + offset_dest, dest.Size * sizeof(WORD), src.Buffer + offset_src, src.Size * sizeof(WORD));
+		bi_memcpy(dest.Buffer + offset_dest, dest.Capacity * sizeof(WORD), src.Buffer + offset_src, src.Capacity * sizeof(WORD));
 	}
 
 	void Move(bi_int& dest, bi_int& src) {
@@ -107,72 +70,59 @@ namespace Utils {
 		if (IsOnStack(src)) {
 
 			Copy(dest, src);
-			src.m_SNO = 0;
+			src.SNO = 0;
 		}
 
 		else {
 
 			dest.Buffer = src.Buffer;
 			dest.Size = src.Size;
+			dest.Capacity = src.Capacity;
 
-			delete[] src.Buffer;
-			src.m_SNO = 0;
+			src.SNO = 0;
 			src.Sign = BI_PLUS_SIGN;
+			delete[] src.Buffer;
+			src.Buffer = &src.SNO;
 			src.Size = 1;
+			src.Capacity = 1;
 		}
 	}
 
 	void Clear(bi_int& data) {
 
-		if (data.Size != 1) {
+		if (data.Capacity != 1) {
 
-			PRINT("Clear called (data: %p, size: %zu)", data.Buffer, data.Size);
+			PRINT("Clear called (data: %p, size: %zu)", data.Buffer, data.Capacity);
 
 			delete[] data.Buffer;
 
-			data.Buffer = &data.m_SNO;
+			data.Buffer = &data.SNO;
 			data.Size = 1;
+			data.Capacity = 1;
 		}
 
-		data.m_SNO = 0;
+		data.SNO = 0;
 	}
 
 	void ShrinkToFit(bi_int& data) {
 
-		if (data.Size == 1)
+		if (data.Capacity == 1)
 			return;
 
-		std::size_t size = 1;
-		for (std::size_t i = 0; i < data.Size; i++) {
-
-			if (data.Buffer[data.Size - 1 - i] != 0 || data.Size - i == 1) {
-
-				size = data.Size + 1 - i;
-
-				break;
-			}
-		}
-
-		Resize(data, size);
+		Resize(data, data.Size);
 	}
 
-	std::size_t CountSignificantBits(const WORD* const data, std::size_t size) {
+	std::size_t CountSignificantBits(const bi_int& data) {
 
-		std::size_t bitSize = 0;
-		for (std::size_t i = 0; i < size; i++) {
+		std::size_t bits = (data.Size - 1) * sizeof(WORD) * 8;
+		WORD wrd = data.Buffer[data.Size - 1];
+		while (wrd) {
 
-			if (data[size - 1 - i] != 0) {
-
-				const std::size_t index = size - 1 - i;
-				WORD min = data[index];
-				bitSize = index * sizeof(WORD) * 8 + 1;
-				while (min >>= 1)
-					++bitSize;
-				break;
-			}
+			++bits;
+			wrd >>= 1;
 		}
 
-		return bitSize == 0 ? 1 : bitSize;
+		return bits == 0 ? 1 : bits;
 	}
 
 	// --- Mathematical functions ---
@@ -194,8 +144,8 @@ namespace Utils {
 		else if (first.Sign > second.Sign)
 			return LESS;
 
-		const std::size_t firstBitSize = CountSignificantBits(first.Buffer, first.Size);
-		const std::size_t secondBitSize = CountSignificantBits(second.Buffer, second.Size);
+		const std::size_t firstBitSize = CountSignificantBits(first);
+		const std::size_t secondBitSize = CountSignificantBits(second);
 
 		// If the number of significant bits in the first number is higher than the second one, then return 1, else return -1
 		if (firstBitSize > secondBitSize)
@@ -205,7 +155,7 @@ namespace Utils {
 
 		std::size_t size = std::min(first.Size, second.Size) - 1;
 
-		// Check every byte in the two numbers
+		// Check every word in the two numbers
 		do {
 
 			if (first.Buffer[size] > second.Buffer[size])
@@ -215,7 +165,7 @@ namespace Utils {
 
 		} while (size--);
 
-		return LESS;
+		return EQUAL;
 	}
 
 	void Negate(bi_int& data) {
@@ -228,6 +178,113 @@ namespace Utils {
 		if (data.Sign == BI_MINUS_SIGN)
 			data.Sign = BI_PLUS_SIGN;
 	}
+
+	void Increment(bi_int& data) {
+
+		// The number has the same sign as the number 1
+		if (data.Sign == BI_PLUS_SIGN) {
+
+			WORD carry = 1;
+			std::size_t i = 0;
+			while (i < data.Size && carry == 1) {
+
+				carry = 0;
+				const WORD v = data.Buffer[i];
+				++data.Buffer[i];
+				if (data.Buffer[i] < v)
+					carry = 1;
+
+				i++;
+			}
+
+			if (carry) {
+
+				if (data.Size + 1 > data.Capacity)
+					Utils::Resize(data, data.Size + 1);
+				data.Buffer[data.Size] = 1;
+				++data.Size;
+			}
+		}
+
+		else {
+
+			if (data.Size == 1 && *data.Buffer == 1) {
+
+				*data.Buffer = 0;
+				data.Sign = BI_PLUS_SIGN;
+			}
+
+			else {
+
+				WORD carry = 1;
+				std::size_t i = 0;
+				while (i < data.Size && carry == 1) {
+
+					carry = 0;
+					const WORD v = data.Buffer[i];
+					--data.Buffer[i];
+					if (data.Buffer[i] > v)
+						carry = 1;
+
+					i++;
+				}
+			}
+		}
+	}
+
+	void Decrement(bi_int& data) {
+
+		// The number has the same sign as the number -1
+		if (data.Sign == BI_PLUS_SIGN) {
+
+			if (data.Size == 1 && *data.Buffer == 0) {
+
+				*data.Buffer = 1;
+				data.Sign = BI_MINUS_SIGN;
+			}
+
+			else {
+
+				WORD carry = 1;
+				std::size_t i = 0;
+				while (i < data.Size && carry == 1) {
+
+					carry = 0;
+					const WORD v = data.Buffer[i];
+					--data.Buffer[i];
+					if (data.Buffer[i] > v)
+						carry = 1;
+
+					i++;
+				}
+			}
+		}
+
+		else {
+
+			WORD carry = 1;
+			std::size_t i = 0;
+			while (i < data.Size && carry == 1) {
+
+				carry = 0;
+				const WORD v = data.Buffer[i];
+				++data.Buffer[i];
+				if (data.Buffer[i] < v)
+					carry = 1;
+
+				i++;
+			}
+
+			if (carry) {
+
+				if (data.Size + 1 > data.Capacity)
+					Utils::Resize(data, data.Size + 1);
+				data.Buffer[data.Size] = 1;
+				++data.Size;
+			}
+		}
+	}
+
 //
 //	void Increment(bi_int& data) {
 //
@@ -656,9 +713,9 @@ namespace Utils {
 
 	void ShiftLeft(bi_int& data, std::size_t bit_shift_amount) {
 
-		if (bit_shift_amount > data.Size * sizeof(WORD) * 8) {
+		if (bit_shift_amount > data.Capacity * sizeof(WORD) * 8) {
 
-			memset(data.Buffer, 0, data.Size * sizeof(WORD));
+			memset(data.Buffer, 0, data.Capacity * sizeof(WORD));
 
 			return;
 		}
@@ -666,11 +723,11 @@ namespace Utils {
 		WORD*& buffer = data.Buffer;
 		std::size_t offset = bit_shift_amount / (sizeof(WORD) * 8);
 		std::size_t rest = bit_shift_amount % (sizeof(WORD) * 8);
-		bi_memmove(buffer + offset, data.Size * sizeof(WORD), buffer, data.Size * sizeof(WORD) - offset);
+		bi_memmove(buffer + offset, data.Capacity * sizeof(WORD), buffer, data.Capacity * sizeof(WORD) - offset);
 		memset(buffer, 0, offset * sizeof(WORD));
 
 		WORD* word;
-		std::size_t size = data.Size;
+		std::size_t size = data.Capacity;
 		for (word = data.Size - 1 + buffer; size--; word--) {
 
 			WORD bits = 0;
@@ -684,9 +741,9 @@ namespace Utils {
 
 	void ShiftRight(bi_int& data, std::size_t bit_shift_amount) {
 
-		if (bit_shift_amount >= data.Size * sizeof(WORD) * 8) {
+		if (bit_shift_amount >= data.Capacity * sizeof(WORD) * 8) {
 
-			memset(data.Buffer, 0, data.Size * sizeof(WORD));
+			memset(data.Buffer, 0, data.Capacity * sizeof(WORD));
 
 			return;
 		}
@@ -694,13 +751,13 @@ namespace Utils {
 		WORD*& buffer = data.Buffer;
 		std::size_t offset = bit_shift_amount / (sizeof(WORD) * 8);
 		std::size_t rest = bit_shift_amount % (sizeof(WORD) * 8);
-		bi_memmove(buffer, data.Size * sizeof(WORD), buffer + offset, data.Size * sizeof(WORD) - offset);
-		memset(buffer + data.Size - offset, 0, offset * sizeof(WORD));
+		bi_memmove(buffer, data.Capacity * sizeof(WORD), buffer + offset, data.Capacity * sizeof(WORD) - offset);
+		memset(buffer + data.Capacity - offset, 0, offset * sizeof(WORD));
 
 		// Shift the last 'rest' bits to the right
 
 		WORD* word;
-		std::size_t size = data.Size;
+		std::size_t size = data.Capacity;
 		for (word = data.Buffer; size--; word++) {
 
 			WORD bits = 0;
@@ -716,46 +773,42 @@ namespace Utils {
 
 	std::string ToString(const bi_int& data) {
 
-		// If the big integer is allocated on the stack, we can use the library functions to convert the number to string
-		if (IsOnStack(data))
-			return std::to_string(data.Sign ? -(std::int64_t)data.m_SNO : (std::int64_t)data.m_SNO);
-
 		// Shifts left by one bit
 		void(*ShiftLeft1)(std::uint8_t* buffer, std::size_t size_in_bytes)
-			=
-			[](std::uint8_t* buffer, std::size_t size_in_bytes) {
+		=
+		[](std::uint8_t* buffer, std::size_t size_in_bytes) {
 
-				std::uint8_t* byte;
-				for (byte = (std::uint8_t*)buffer; size_in_bytes--; byte++) {
+			std::uint8_t* byte;
+			for (byte = (std::uint8_t*)buffer; size_in_bytes--; byte++) {
 
-					std::uint8_t bit = 0;
-					if (size_in_bytes)
-						bit = byte[1] & (1 << (CHAR_BIT - 1)) ? 1 : 0;
+				std::uint8_t bit = 0;
+				if (size_in_bytes)
+					bit = byte[1] & (1 << (CHAR_BIT - 1)) ? 1 : 0;
 
-					*byte <<= 1;
-					*byte |= bit;
-				}
-			};
+				*byte <<= 1;
+				*byte |= bit;
+			}
+		};
 
 		// Shifts left by 4 bits
 		void(*ShiftLeft4)(std::uint8_t* buffer, std::size_t size_in_bytes)
-			=
-			[](std::uint8_t* buffer, std::size_t size_in_bytes) {
+		=
+		[](std::uint8_t* buffer, std::size_t size_in_bytes) {
 
-				std::uint8_t* byte;
-				for (byte = (std::uint8_t*)buffer; size_in_bytes--; byte++) {
+			std::uint8_t* byte;
+			for (byte = (std::uint8_t*)buffer; size_in_bytes--; byte++) {
 
-					std::uint8_t bit = 0;
-					if (size_in_bytes)
-						bit = (byte[1] & (0xFF << (CHAR_BIT - 4))) >> (CHAR_BIT - 4);
+				std::uint8_t bit = 0;
+				if (size_in_bytes)
+					bit = (byte[1] & (0xFF << (CHAR_BIT - 4))) >> (CHAR_BIT - 4);
 
-					*byte <<= 4;
-					*byte |= bit;
-				}
-			};
+				*byte <<= 4;
+				*byte |= bit;
+			}
+		};
 
 		// Big integer significant bits
-		const std::size_t significantBits = CountSignificantBits(data.Buffer, data.Size);
+		const std::size_t significantBits = CountSignificantBits(data);
 
 		// Size in bytes = ceil(4*ceil(n/3)/8) + 1
 		// The last one is needed as an auxiliary buffer to store the first 8 bits in the number
@@ -843,20 +896,20 @@ namespace Utils {
 
 		// Shifts right by one bit
 		void(*ShiftRight1)(std::uint8_t* buffer, std::size_t size_in_bytes)
-			=
-			[](std::uint8_t* buffer, std::size_t size_in_bytes) {
+		=
+		[](std::uint8_t* buffer, std::size_t size_in_bytes) {
 
-				std::uint8_t* byte;
-				for (byte = size_in_bytes - 1 + (std::uint8_t*)buffer; size_in_bytes--; byte--) {
+			std::uint8_t* byte;
+			for (byte = size_in_bytes - 1 + (std::uint8_t*)buffer; size_in_bytes--; byte--) {
 
-					std::uint8_t bit = 0;
-					if (size_in_bytes)
-						bit = byte[-1] & 1 ? 1 : 0;
+				std::uint8_t bit = 0;
+				if (size_in_bytes)
+					bit = byte[-1] & 1 ? 1 : 0;
 
-					*byte >>= 1;
-					*byte |= (bit << (CHAR_BIT - 1));
-				}
-			};
+				*byte >>= 1;
+				*byte |= (bit << (CHAR_BIT - 1));
+			}
+		};
 
 		// If the string is empty, return null
 		if (str.empty())
@@ -903,16 +956,20 @@ namespace Utils {
 
 		// Set up data
 
-		const std::size_t dataSize = (std::size_t)std::ceil(std::ceil((long double)strLength * log2(10.0l) + 1) / (sizeof(WORD) * 8.0l));
+		const std::size_t dataSize = (std::size_t)std::ceil(std::ceil((long double)strLength * log2(10.0l)) / (sizeof(WORD) * 8.0l));
+		bool capacityAlreadySet = false; // To remove unnecessary padding caused by the instruction up here. But if the capacity was stored by the user, keep the padding at the end of this function
 
-		if (data.Size < dataSize) {
+		if (data.Capacity < dataSize) {
 
 			Clear(data);
 			Resize(data, dataSize);
 		}
 
-		else
-			memset(data.Buffer, 0, data.Size * sizeof(WORD));
+		else {
+
+			capacityAlreadySet = true;
+			memset(data.Buffer, 0, data.Capacity * sizeof(WORD));
+		}
 
 		std::size_t offset = 0;
 		std::uint8_t* buffer = (std::uint8_t*)data.Buffer;
@@ -953,6 +1010,18 @@ namespace Utils {
 				}
 			}
 		}
+
+		for (std::size_t i = 0; i < data.Capacity; i++) {
+
+			if (data.Buffer[data.Capacity - 1 - i] != 0) {
+
+				data.Size = data.Capacity - i;
+				break;
+			}
+		}
+
+		if (!capacityAlreadySet)
+			Utils::ShrinkToFit(data);
 
 		return true;
 	}

@@ -39,7 +39,10 @@ namespace Utils {
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
 	/// <returns>True if it is allocated on the stack, false if it is allocated on the heap</returns>
-	bool IsOnStack(const bi_int& data);
+	static inline bool IsOnStack(const bi_int& data) {
+
+		return data.Capacity == 1;
+	}
 
 	/// <summary>
 	/// Resizes the given big integer. Can be used to create or resize a big integer's buffer while keeping its original content (as long as the new size is greater or equal to the old one).
@@ -79,10 +82,9 @@ namespace Utils {
 	/// <summary>
 	/// Counts the number of bits that are not considered padding
 	/// </summary>
-	/// <param name="data">The big integer buffer</param>
-	/// <param name="size">The big integer buffer size</param>
+	/// <param name="data">The big integer data</param>
 	/// <returns>The number of bits that have an impact on the number representation</returns>
-	std::size_t CountSignificantBits(const WORD* const data, std::size_t size);
+	std::size_t CountSignificantBits(const bi_int& data);
 
 	// --- Mathematical functions ---
 
@@ -109,6 +111,18 @@ namespace Utils {
 	/// </summary>
 	/// <param name="data">The desired big integer</param>
 	void Abs(bi_int& data);
+
+	/// <summary>
+	/// Increments the big integer by one. It could resize the array if overflow occurs
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Increment(bi_int& data);
+
+	/// <summary>
+	/// Decrements the big integer by one. It could resize the array if overflow occurs
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	void Decrement(bi_int& data);
 
 	// --- Bitwise functions ---
 

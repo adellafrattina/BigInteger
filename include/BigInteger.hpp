@@ -76,11 +76,14 @@ public:
 	// The buffer size
 	std::size_t Size;
 
+	// The buffer capacity
+	std::size_t Capacity;
+
 	// The big integer sign
 	bool Sign;
 
 	// Small Number Optimization
-	WORD m_SNO;
+	WORD SNO;
 };
 
 namespace big {
@@ -93,18 +96,18 @@ namespace big {
 			typename T,
 			typename = typename std::enable_if<std::is_integral<T>::value>::type
 		>
-		Integer(T n, std::size_t size_in_bits = 0) {
+		Integer(T n, std::size_t capacity = 0) {
 
 			if ((std::int64_t)n < 0)
-				InitFromInt(-(std::int64_t)n, BI_MINUS_SIGN, size_in_bits);
+				InitFromInt(-(std::int64_t)n, BI_MINUS_SIGN, capacity);
 			else
-				InitFromInt(n, BI_PLUS_SIGN, size_in_bits);
+				InitFromInt(n, BI_PLUS_SIGN, capacity);
 		}
 
-		Integer(const std::string& str, std::size_t size_in_bits = 0);
-		Integer(const char* str, std::size_t size_in_bits = 0);
-		Integer(const Integer& other, std::size_t size_in_bits = 0);
-		Integer(std::nullptr_t, std::size_t size_in_bits = 0) = delete;
+		Integer(const std::string& str, std::size_t capacity = 0);
+		Integer(const char* str, std::size_t capacity = 0);
+		Integer(const Integer& other, std::size_t capacity = 0);
+		Integer(std::nullptr_t, std::size_t capacity = 0) = delete;
 		Integer& operator=(const Integer& other);
 		Integer(Integer&& other) noexcept;
 		Integer();
@@ -115,8 +118,8 @@ namespace big {
 		std::string ToString() const;
 		const void* Data();
 		std::size_t Size() const;
-		std::size_t SizeInBytes() const;
-		void Resize(std::size_t size_in_bytes);
+		std::size_t Capacity() const;
+		void Resize(std::size_t capacity);
 		void ShrinkToFit();
 		void Clear();
 
@@ -127,15 +130,21 @@ namespace big {
 
 		// Operator overloading
 
-		friend BI_API big::Integer operator+(const big::Integer& first, const big::Integer& second);
-		friend BI_API big::Integer& operator+=(big::Integer& first, const big::Integer& second);
+		friend BI_API const big::Integer& operator++(big::Integer& n);
+		friend BI_API big::Integer operator++(big::Integer& n, int);
 
-		friend BI_API big::Integer operator*(const big::Integer& first, const big::Integer& second);
-		friend BI_API big::Integer& operator*=(big::Integer& first, const big::Integer& second);
+		friend BI_API const big::Integer& operator--(big::Integer& n);
+		friend BI_API big::Integer operator--(big::Integer& n, int);
+
+		friend BI_API const big::Integer operator+(const big::Integer& first, const big::Integer& second);
+		friend BI_API const big::Integer& operator+=(big::Integer& first, const big::Integer& second);
+
+		friend BI_API const big::Integer operator*(const big::Integer& first, const big::Integer& second);
+		friend BI_API const big::Integer& operator*=(big::Integer& first, const big::Integer& second);
 
 	private:
 
-		void InitFromInt(WORD n, bool sign, std::size_t size_in_bits);
+		void InitFromInt(WORD n, bool sign, std::size_t capacity);
 
 		// Normal big integer data structure
 		bi_int m_Data;
