@@ -222,6 +222,21 @@ namespace big {
 
 		return num;
 	}
+
+	const big::Integer operator*(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer num(a);
+		Utils::Mult(num.m_Data, b.m_Data);
+
+		return num;
+	}
+
+	const big::Integer& operator*=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Mult(a.m_Data, b.m_Data);
+
+		return a;
+	}
 }
 
 // --- Big integer structure ---

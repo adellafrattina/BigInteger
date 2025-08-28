@@ -6,7 +6,7 @@
 #include <limits>
 
 #undef BI_PRINT_DEBUG_INFO
-#define BI_PRINT_DEBUG_INFO
+//#define BI_PRINT_DEBUG_INFO
 
 #ifndef BI_STATIC
 	#if defined(_WIN32)

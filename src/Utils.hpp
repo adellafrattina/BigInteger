@@ -86,6 +86,12 @@ namespace Utils {
 	/// <returns>The number of bits that have an impact on the number representation</returns>
 	std::size_t CountSignificantBits(const bi_int& data);
 
+	/// <summary>
+	/// Normalizes the data, meaning that it will set the size to the most significant word which is non-zero
+	/// </summary>
+	/// <param name="data">The desired data to normalize</param>
+	void Normalize(bi_int& data);
+
 	// --- Mathematical functions ---
 
 	/// <summary>
@@ -167,6 +173,14 @@ namespace Utils {
 	/// <param name="a">The minuend and where the result will be stored</param>
 	/// <param name="b">The subtrahend</param>
 	void SubU(bi_int& a, const bi_int& b);
+
+	/// <summary>
+	/// Multiplies the first big integer by the second one. The result is stored in the first one. The first big integer buffer could be resized if
+	/// the second one is bigger or if overflow occurs
+	/// </summary>
+	/// <param name="a">The first factor, where the result will be stored</param>
+	/// <param name="b">The second factor</param>
+	void Mult(bi_int& a, const bi_int& b);
 
 	// --- Bitwise functions ---
 
