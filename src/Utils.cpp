@@ -62,7 +62,7 @@ namespace Utils {
 
 	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest, const std::size_t offset_src) {
 
-		bi_memcpy(dest.Buffer + offset_dest, dest.Capacity * sizeof(WORD), src.Buffer + offset_src, src.Capacity * sizeof(WORD));
+		bi_memcpy(dest.Buffer + offset_dest, dest.Capacity * sizeof(WORD), src.Buffer + offset_src, src.Size * sizeof(WORD));
 		dest.Sign = src.Sign;
 		dest.Size = src.Size;
 	}
@@ -348,7 +348,7 @@ namespace Utils {
 
 				bi_int c = b;
 				SubU(c, a);
-				Move(a, c);
+				Copy(a, c);
 			}
 
 			else {
@@ -401,7 +401,7 @@ namespace Utils {
 
 				bi_int c = b;
 				SubU(c, a);
-				Move(a, c);
+				Copy(a, c);
 				a.Sign = BI_MINUS_SIGN;
 			}
 
@@ -449,9 +449,20 @@ namespace Utils {
 		std::function<void(bi_int&, const bi_int&)> Karatsuba;
 		Karatsuba
 		=
-		[&](bi_int& a, const bi_int& b) {
+		[&Karatsuba](bi_int& a, const bi_int& b) {
 
 			if (a.Size == 1 && b.Size == 1) {
+
+				// If the number is less than 4294967295, we can simply multiply the two buffers
+				if (*a.Buffer <= std::numeric_limits<std::uint32_t>::max() &&
+					*a.Buffer <= std::numeric_limits<std::uint32_t>::max())
+
+				{
+
+					*a.Buffer *= *a.Buffer;
+
+					return;
+				}
 
 				/*
 
@@ -551,12 +562,314 @@ namespace Utils {
 			AddU(a, k3);
 		};
 
-		const std::size_t resultSize = std::max(std::max(first.Capacity, second.Capacity), first.Size + second.Size);
+		std::function<void(bi_int&, const bi_int&)> ToomCook3;
+		ToomCook3
+		=
+		[&ToomCook3, &Karatsuba](bi_int& a, const bi_int& b) {
 
-		// Karatsuba algorithm
-		Resize(first, resultSize);
-		Karatsuba(first, second);
+			// Multiply by word
+			auto MultiplyByWord
+			=
+			[](bi_int& a, WORD c) {
 
+				std::uint32_t* buffer = (std::uint32_t*)a.Buffer;
+				std::uint64_t carry = 0;
+				std::size_t i = 0;
+				for (; i < a.Size * 2; ++i) {
+
+					std::uint64_t product = (uint64_t)(buffer[i]) * c + carry;
+					buffer[i] = (std::uint32_t)product;
+					carry = product >> 32;
+				}
+
+				if (carry) {
+
+					buffer[i] = (std::uint32_t)carry;
+					++a.Size;
+				}
+			};
+
+			// Divide by word
+			auto DivideByWord
+			=
+			[](bi_int& a, std::uint32_t c) {
+
+				constexpr uint64_t BASE = uint64_t(1) << 32;
+
+				// Inverse module
+				auto ModInverse
+				=
+				[&BASE](std::uint32_t c) {
+
+					int64_t t = 0, newt = 1;
+					int64_t r = BASE, newr = c;
+
+					while (newr != 0) {
+						uint64_t quotient = r / newr;
+						std::tie(t, newt) = std::make_pair(newt, t - quotient * newt);
+						std::tie(r, newr) = std::make_pair(newr, r - quotient * newr);
+					}
+
+					if (t < 0) t += BASE;
+
+					return uint32_t(t);
+				};
+
+				std::uint32_t* A = (std::uint32_t*)a.Buffer;
+				std::size_t n = a.Size * 2;
+				std::uint32_t d = ModInverse(c);
+				std::uint32_t b = 0;
+				for (size_t i = 0; i < n; ++i) {
+
+					std::uint64_t ai = A[i];
+					std::uint64_t x, b1;
+					if (b <= ai) {
+
+						x = ai - b;
+						b1 = 0;
+					}
+
+					else {
+
+						x = ai + BASE - b;
+						b1 = 1;
+					}
+
+					std::uint64_t q = (d * x) % BASE;
+					A[i] = std::uint32_t(q);
+
+					std::uint64_t prod = std::uint64_t(q) * c;
+					std::uint64_t b2 = (prod - x) / BASE;
+					b = (std::uint32_t)(b1 + (std::uint32_t)b2);
+				}
+
+				return b;
+			};
+
+			if (a.Size < 6 && b.Size < 6) {
+
+				Karatsuba(a, b);
+
+				return;
+			}
+
+			// Split
+
+			const std::size_t size = std::max(a.Size, b.Size);
+			const std::size_t k = (std::size_t)std::ceil((long double)size / 3.0);
+
+			bi_int a0, a1, a2, b0, b1, b2;
+			Resize(a0, k);
+			Resize(a1, k + 1);
+			Resize(a2, size - 2 * k + 1);
+			Resize(b0, k);
+			Resize(b1, k + 1);
+			Resize(b2, size - 2 * k + 1);
+
+			// A0
+			for (std::size_t i = 0; i < k; i++)
+				a0.Buffer[i] = i < a.Size ? a.Buffer[i] : 0;
+			Normalize(a0);
+
+			// A1
+			for (std::size_t i = k; i < 2 * k; i++)
+				a1.Buffer[i - k] = i < a.Size ? a.Buffer[i] : 0;
+			Normalize(a1);
+
+			// A2
+			for (std::size_t i = 2 * k; i < size; i++)
+				a2.Buffer[i - 2 * k] = i < a.Size ? a.Buffer[i] : 0;
+			Normalize(a2);
+
+			// B0
+			for (std::size_t i = 0; i < k; i++)
+				b0.Buffer[i] = i < b.Size ? b.Buffer[i] : 0;
+			Normalize(b0);
+
+			// B1
+			for (std::size_t i = k; i < 2 * k; i++)
+				b1.Buffer[i - k] = i < b.Size ? b.Buffer[i] : 0;
+			Normalize(b1);
+
+			// B2
+			for (std::size_t i = 2 * k; i < size; i++)
+				b2.Buffer[i - 2 * k] = i < b.Size ? b.Buffer[i] : 0;
+			Normalize(b2);
+
+			// A02
+			bi_int a02;
+			Resize(a02, std::max(a0.Size, a2.Size) + 1);
+			Copy(a02, a0);
+			AddU(a02, a2);
+
+			// B02
+			bi_int b02;
+			Resize(b02, std::max(b0.Size, b2.Size) + 1);
+			Copy(b02, b0);
+			AddU(b02, b2);
+
+			// A012
+			bi_int a012;
+			Resize(a012, std::max(a02.Size, a1.Size) + 1);
+			Copy(a012, a02);
+			AddU(a012, a1);
+
+			// B012
+			bi_int b012;
+			Resize(b012, std::max(b02.Size, b1.Size) + 1);
+			Copy(b012, b02);
+			AddU(b012, b1);
+
+			// V0
+			bi_int v0;
+			Resize(v0, a0.Size + b0.Size);
+			Copy(v0, a0);
+			//bi_memcpy(v0.Buffer, v0.Capacity * sizeof(WORD), a0.Buffer, a0.Size * sizeof(WORD));
+			//v0.Size = a0.Size;
+			ToomCook3(v0, b0);
+
+			// V1
+			bi_int v1;
+			Resize(v1, a012.Size + b012.Size);
+			Copy(v1, a012);
+			ToomCook3(v1, b012);
+
+			// Vm1
+			bi_int vm1;
+			Sub(a02, a1);
+			Sub(b02, b1);
+			Resize(vm1, a02.Size + b02.Size + 1);
+			Copy(vm1, a02);
+			ToomCook3(vm1, b02);
+			vm1.Sign = vm1.Sign ^ b02.Sign;
+
+			// a1 -> 2*a1
+			ShiftLeft(a1, 1);
+
+			// a2 -> 4*a2
+			ShiftLeft(a2, 2);
+
+			// b1 -> 2*b1
+			ShiftLeft(b1, 1);
+
+			// b2 -> 4*b2
+			ShiftLeft(b2, 2);
+
+			// A0_2A1_4A2
+			bi_int a0_2a1_4a2;
+			Resize(a0_2a1_4a2, std::max(a0.Size, std::max(a1.Size, a2.Size)) + 1);
+			Copy(a0_2a1_4a2, a0);
+			AddU(a0_2a1_4a2, a1);
+			AddU(a0_2a1_4a2, a2);
+
+			// B0_2B1_4B2
+			bi_int b0_2b1_4b2;
+			Resize(b0_2b1_4b2, std::max(b0.Size, std::max(b1.Size, b2.Size)) + 1);
+			Copy(b0_2b1_4b2, b0);
+			AddU(b0_2b1_4b2, b1);
+			AddU(b0_2b1_4b2, b2);
+
+			// 4*a2 -> a2
+			ShiftRight(a2, 2);
+
+			// 4*b2 -> b2
+			ShiftRight(b2, 2);
+
+			// V2
+			bi_int v2;
+			Resize(v2, a0_2a1_4a2.Size + b0_2b1_4b2.Size);
+			Copy(v2, a0_2a1_4a2);
+			ToomCook3(v2, b0_2b1_4b2);
+
+			// Vinf
+			bi_int vinf;
+			Resize(vinf, a2.Size + b2.Size + 1);
+			Copy(vinf, a2);
+			ToomCook3(vinf, b2);
+
+			// vm1 -> 2*vm1
+			ShiftLeft(vm1, 1);
+
+			// vinf -> 2*vinf
+			ShiftLeft(vinf, 1);
+
+			// 3*V0
+			bi_int _3v0;
+			Resize(_3v0, std::max(v0.Size + 1, std::max(vm1.Size, v2.Size)) + 1);
+			Copy(_3v0, v0);
+			MultiplyByWord(_3v0, 3); // Multiply by 3
+			Add(_3v0, vm1);
+			Add(_3v0, v2);
+			ShiftRight(_3v0, 1); // Division by 2
+			DivideByWord(_3v0, 3); // Division by 3
+
+			// T1
+			bi_int t1;
+			Resize(t1, std::max(_3v0.Size, vinf.Size));
+			Copy(t1, _3v0);
+			Sub(t1, vinf);
+
+			// 2*vm1 -> vm1
+			ShiftRight(vm1, 1);
+
+			// 2*vinf -> vinf
+			ShiftRight(vinf, 1);
+
+			// T2
+			bi_int t2;
+			Resize(t2, std::max(v1.Size, vm1.Size) + 1);
+			Copy(t2, v1);
+			Add(t2, vm1);
+			ShiftRight(t2, 1);
+
+			// C0
+			const bi_int& c0 = v0;
+
+			// C1
+			bi_int c1;
+			Resize(c1, std::max(v1.Size, t1.Size) + k);
+			Copy(c1, v1);
+			Sub(c1, t1);
+
+			// C2
+			bi_int c2;
+			Resize(c2, std::max(t2.Size, std::max(v0.Size, vinf.Size)) + 2 * k);
+			Copy(c2, t2);
+			Sub(c2, v0);
+			Sub(c2, vinf);
+
+			// C3
+			bi_int c3;
+			Resize(c3, std::max(t1.Size, t2.Size) + 3 * k);
+			Copy(c3, t1);
+			Sub(c3, t2);
+			Resize(c3, std::max(t1.Size, t2.Size) + 3 * k);
+
+			// C4
+			bi_int c4;
+			Resize(c4, vinf.Size + 4 * k);
+			Copy(c4, vinf);
+
+			memset(a.Buffer, 0, a.Size * sizeof(WORD));
+			ShiftLeft(c1, 1 * k * sizeof(WORD) * 8);
+			ShiftLeft(c2, 2 * k * sizeof(WORD) * 8);
+			ShiftLeft(c3, 3 * k * sizeof(WORD) * 8);
+			ShiftLeft(c4, 4 * k * sizeof(WORD) * 8);
+			Copy(a, c0);
+			Add(a, c1);
+			Add(a, c2);
+			Add(a, c3);
+			Add(a, c4);
+		};
+
+		// Reserve space for result
+		Resize(first, std::max(std::max(first.Capacity, second.Capacity), first.Size + second.Size));
+
+		// Multiply
+		ToomCook3(first, second);
+		//Karatsuba(first, second);
+
+		// Establish sign
 		first.Sign = first.Sign ^ second.Sign;
 	}
 
@@ -646,7 +959,7 @@ namespace Utils {
 
 		WORD* word;
 		std::size_t size = data.Capacity;
-		for (word = data.Size - 1 + buffer; size--; word--) {
+		for (word = size - 1 + buffer; size--; word--) {
 
 			WORD bits = 0;
 			if (size)
