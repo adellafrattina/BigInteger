@@ -41,7 +41,7 @@ namespace Utils {
 	/// <returns>True if it is allocated on the stack, false if it is allocated on the heap</returns>
 	static inline bool IsOnStack(const bi_int& data) {
 
-		return data.Capacity == 1;
+		return data.Size == 1;
 	}
 
 	/// <summary>
@@ -87,10 +87,11 @@ namespace Utils {
 	std::size_t CountSignificantBits(const bi_int& data);
 
 	/// <summary>
-	/// Normalizes the data, meaning that it will set the size to the most significant word which is non-zero
+	/// Counts the number of words that are not considered padding
 	/// </summary>
-	/// <param name="data">The desired data to normalize</param>
-	void Normalize(bi_int& data);
+	/// <param name="data">The big integer data</param>
+	/// <returns>The number of words that have an impact on the number representation</returns>
+	std::size_t CountSignificantWords(const bi_int& data);
 
 	// --- Mathematical functions ---
 
@@ -167,8 +168,9 @@ namespace Utils {
 	void Sub(bi_int& a, const bi_int& b);
 
 	/// <summary>
-	/// Subtracts the first big integer's magnitude with the second one (no sign handle). The first one must be greater or equal to the second one. The result is stored in the first one. The first big integer buffer could be resized if
-	/// the second one is bigger or if overflow occurs
+	/// Subtracts the first big integer's magnitude with the second one (no sign handle). The first one must be greater or equal to the second one.
+	/// The result is stored in the first one. The first big integer buffer could be resized if
+	/// overflow occurs
 	/// </summary>
 	/// <param name="a">The minuend and where the result will be stored</param>
 	/// <param name="b">The subtrahend</param>
@@ -181,6 +183,14 @@ namespace Utils {
 	/// <param name="a">The first factor, where the result will be stored</param>
 	/// <param name="b">The second factor</param>
 	void Mult(bi_int& a, const bi_int& b);
+
+	/// <summary>
+	/// Divides the first big integer by the second one. The result is stored in the first one. The first big integer buffer could be resized if
+	/// overflow occurs
+	/// </summary>
+	/// <param name="a">The dividend, where the result will be stored</param>
+	/// <param name="b">The divisor</param>
+	void Div(bi_int& a, const bi_int& b);
 
 	// --- Bitwise functions ---
 

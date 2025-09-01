@@ -76,9 +76,6 @@ public:
 	// The buffer size
 	std::size_t Size;
 
-	// The buffer capacity
-	std::size_t Capacity;
-
 	// The big integer sign
 	bool Sign;
 
@@ -91,6 +88,8 @@ namespace big {
 	class BI_API Integer {
 
 	public:
+
+		static void Rand(big::Integer& n);
 
 		template <
 			typename T,
@@ -118,8 +117,7 @@ namespace big {
 		std::string ToString() const;
 		const void* Data();
 		std::size_t Size() const;
-		std::size_t Capacity() const;
-		void Resize(std::size_t capacity);
+		void Resize(std::size_t size);
 		void ShrinkToFit();
 		void Clear();
 

@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cmath>
+#include <random>
 
 #include "Utils.hpp"
 
@@ -7,12 +8,21 @@
 
 namespace big {
 
-	void Integer::InitFromInt(WORD n, bool sign, std::size_t capacity) {
+	void Integer::Rand(big::Integer& n) {
 
-		capacity = (std::size_t)std::ceil((long double)capacity / (sizeof(WORD) * 8));
-		if (capacity > 1) {
+		static std::minstd_rand rand;
 
-			Utils::Resize(m_Data, capacity);
+		rand.seed((unsigned)time(NULL));
+		for (std::size_t i = 0; i < n.m_Data.Size; i++)
+			n.m_Data.Buffer[i] = std::uint64_t(rand());
+	}
+
+	void Integer::InitFromInt(WORD n, bool sign, std::size_t size) {
+
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		if (size > 1) {
+
+			Utils::Resize(m_Data, size);
 			bi_memcpy(m_Data.Buffer, m_Data.Size * sizeof(WORD), &n, sizeof(WORD));
 			m_Data.Sign = sign;
 		}
@@ -21,15 +31,15 @@ namespace big {
 			m_Data = bi_int(n, sign);
 	}
 
-	Integer::Integer(const std::string& str, std::size_t capacity)
+	Integer::Integer(const std::string& str, std::size_t size)
 		: m_Data()
 
 	{
 
-		capacity = (std::size_t)std::ceil((long double)capacity / (sizeof(WORD) * 8));
-		if (capacity > 1) {
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		if (size > 1) {
 
-			Utils::Resize(m_Data, capacity);
+			Utils::Resize(m_Data, size);
 			Utils::FromString(m_Data, str);
 		}
 
@@ -37,15 +47,15 @@ namespace big {
 			Utils::FromString(m_Data, str);
 	}
 
-	Integer::Integer(const char* str, std::size_t capacity)
+	Integer::Integer(const char* str, std::size_t size)
 		: m_Data()
 
 	{
 
-		capacity = (std::size_t)std::ceil((long double)capacity / (sizeof(WORD) * 8));
-		if (capacity > 1) {
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		if (size > 1) {
 
-			Utils::Resize(m_Data, capacity);
+			Utils::Resize(m_Data, size);
 			Utils::FromString(m_Data, str);
 		}
 
@@ -53,15 +63,15 @@ namespace big {
 			Utils::FromString(m_Data, str);
 	}
 
-	Integer::Integer(const Integer& other, std::size_t capacity)
+	Integer::Integer(const Integer& other, std::size_t size)
 		: m_Data()
 
 	{
 
-		capacity = (std::size_t)std::ceil((long double)capacity / (sizeof(WORD) * 8));
-		if (capacity > 1) {
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		if (size > 1) {
 
-			Utils::Resize(m_Data, capacity + other.m_Data.Capacity);
+			Utils::Resize(m_Data, size + other.m_Data.Size);
 			Utils::Copy(m_Data, other.m_Data);
 		}
 
@@ -72,7 +82,7 @@ namespace big {
 
 			else {
 
-				Utils::Resize(m_Data, other.m_Data.Capacity);
+				Utils::Resize(m_Data, other.m_Data.Size);
 				Utils::Copy(m_Data, other.m_Data);
 			}
 		}
@@ -85,7 +95,7 @@ namespace big {
 
 		else {
 
-			Utils::Resize(m_Data, other.m_Data.Capacity);
+			Utils::Resize(m_Data, other.m_Data.Size);
 			Utils::Copy(m_Data, other.m_Data);
 		}
 
@@ -124,15 +134,10 @@ namespace big {
 		return m_Data.Size;
 	}
 
-	std::size_t Integer::Capacity() const {
+	void Integer::Resize(std::size_t size) {
 
-		return m_Data.Capacity;
-	}
-
-	void Integer::Resize(std::size_t capacity) {
-
-		capacity = (std::size_t)std::ceil((long double)capacity / (sizeof(WORD) * 8));
-		Utils::Resize(m_Data, capacity);
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		Utils::Resize(m_Data, size);
 	}
 
 	void Integer::ShrinkToFit() {
@@ -208,6 +213,13 @@ namespace big {
 		return num;
 	}
 
+	const big::Integer& operator+=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Add(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
 	const big::Integer& operator-(big::Integer& n) {
 
 		Utils::Negate(n.m_Data);
@@ -242,7 +254,7 @@ namespace big {
 // --- Big integer structure ---
 
 bi_int::bi_int()
-	: Buffer(nullptr), Size(1), Capacity(1), Sign(BI_PLUS_SIGN), SNO(0)
+	: Buffer(nullptr), Size(1), Sign(BI_PLUS_SIGN), SNO(0)
 
 {
 
@@ -250,20 +262,20 @@ bi_int::bi_int()
 }
 
 bi_int::bi_int(WORD sno, bool sign)
-	: Buffer(nullptr), Size(1), Capacity(1), Sign(sign), SNO(sno)
+	: Buffer(nullptr), Size(1), Sign(sign), SNO(sno)
 
 {
 
 	Buffer = &SNO;
 }
 
-bi_int::bi_int(WORD* buffer, std::size_t capacity, bool sign)
-	: Buffer(buffer), Size(1), Capacity(capacity), Sign(sign), SNO(0)
+bi_int::bi_int(WORD* buffer, std::size_t size, bool sign)
+	: Buffer(buffer), Size(size), Sign(sign), SNO(0)
 
 {}
 
 bi_int::bi_int(const bi_int& other)
-	: Buffer(nullptr), Size(0), Capacity(0), Sign(BI_PLUS_SIGN), SNO(0)
+	: Buffer(nullptr), Size(0), Sign(BI_PLUS_SIGN), SNO(0)
 
 {
 
@@ -272,19 +284,18 @@ bi_int::bi_int(const bi_int& other)
 		SNO = other.SNO;
 		Sign = other.Sign;
 		Size = other.Size;
-		Capacity = other.Capacity;
 		Buffer = &SNO;
 	}
 
 	else {
 
-		Utils::Resize(*this, other.Capacity);
+		Utils::Resize(*this, other.Size);
 		Utils::Copy(*this, other);
 	}
 }
 
 bi_int::bi_int(bi_int&& other) noexcept
-	: Buffer(nullptr), Size(0), Capacity(0), Sign(BI_PLUS_SIGN), SNO(0)
+	: Buffer(nullptr), Size(0), Sign(BI_PLUS_SIGN), SNO(0)
 
 {
 
@@ -293,7 +304,6 @@ bi_int::bi_int(bi_int&& other) noexcept
 		SNO = other.SNO;
 		Sign = other.Sign;
 		Size = other.Size;
-		Capacity = other.Capacity;
 		Buffer = &SNO;
 		other.SNO = 0;
 		other.Sign = BI_PLUS_SIGN;
@@ -310,7 +320,6 @@ bi_int& bi_int::operator=(const bi_int& other) {
 		SNO = other.SNO;
 		Sign = other.Sign;
 		Size = other.Size;
-		Capacity = other.Capacity;
 		Buffer = &SNO;
 	}
 
@@ -330,7 +339,6 @@ bi_int& bi_int::operator=(bi_int&& other) noexcept {
 		SNO = other.SNO;
 		Sign = other.Sign;
 		Size = other.Size;
-		Capacity = other.Capacity;
 		Buffer = &SNO;
 		other.SNO = 0;
 		other.Sign = BI_PLUS_SIGN;
