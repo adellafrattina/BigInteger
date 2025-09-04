@@ -85,5 +85,7 @@ filter "configurations:*DLL or *Shared"
 	postbuildcommands {
 
 		("{MKDIR} ../" .. tdir .. "/test"),
-		("{COPYDIR} %{cfg.buildtarget.relpath} ../" .. tdir .. "/test")
+		("{COPYDIR} %{cfg.buildtarget.relpath} ../" .. tdir .. "/test"),
+		("{MKDIR} ../" .. tdir .. "/benchmark"),
+		("{COPYDIR} %{cfg.buildtarget.relpath} ../" .. tdir .. "/benchmark")
 	}
