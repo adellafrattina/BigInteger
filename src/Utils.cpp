@@ -23,7 +23,7 @@ namespace Utils {
 
 	// --- Basic functions ---
 
-	void Resize(bi_int& data, std::size_t new_size) {
+	void Resize(BigInt_T& data, std::size_t new_size) {
 
 		const std::size_t old_size = data.Size;
 		new_size = new_size <= 1 ? 1 : new_size;
@@ -38,7 +38,7 @@ namespace Utils {
 		if (new_size == 1) {
 
 			WORD* tmp = data.Buffer; // Data was allocated on the heap
-			data = bi_int(*data.Buffer, data.Sign); //SetSNO(data, BigIntegerToWORD(data)); // Allocate on the stack
+			data = BigInt_T(*data.Buffer, data.Sign); //SetSNO(data, BigIntegerToWORD(data)); // Allocate on the stack
 			delete[] tmp; // Free the heap memory
 		}
 
@@ -59,13 +59,13 @@ namespace Utils {
 		}
 	}
 
-	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest, const std::size_t offset_src) {
+	void Copy(BigInt_T& dest, const BigInt_T& src, const std::size_t offset_dest, const std::size_t offset_src) {
 
 		bi_memcpy(dest.Buffer + offset_dest, dest.Size * sizeof(WORD), src.Buffer + offset_src, CountSignificantWords(src) * sizeof(WORD));
 		dest.Sign = src.Sign;
 	}
 
-	void Move(bi_int& dest, bi_int& src) {
+	void Move(BigInt_T& dest, BigInt_T& src) {
 
 		if (IsOnStack(src)) {
 
@@ -88,7 +88,7 @@ namespace Utils {
 		}
 	}
 
-	void Clear(bi_int& data) {
+	void Clear(BigInt_T& data) {
 
 		if (data.Size != 1) {
 
@@ -103,7 +103,7 @@ namespace Utils {
 		data.SNO = 0;
 	}
 
-	void ShrinkToFit(bi_int& data) {
+	void ShrinkToFit(BigInt_T& data) {
 
 		if (data.Size == 1)
 			return;
@@ -121,7 +121,7 @@ namespace Utils {
 		Resize(data, size);
 	}
 
-	std::size_t CountSignificantBits(const bi_int& data) {
+	std::size_t CountSignificantBits(const BigInt_T& data) {
 
 		std::size_t bits = 0;
 		for (std::size_t i = 0; i < data.Size; i++) {
@@ -144,7 +144,7 @@ namespace Utils {
 		return 1;
 	}
 
-	std::size_t CountSignificantWords(const bi_int& data) {
+	std::size_t CountSignificantWords(const BigInt_T& data) {
 
 		if (data.Size == 1)
 			return 1;
@@ -158,7 +158,7 @@ namespace Utils {
 
 	// --- Mathematical functions ---
 
-	int Compare(const bi_int& a, const bi_int& b) {
+	int Compare(const BigInt_T& a, const BigInt_T& b) {
 
 		// The two numbers are identical
 		constexpr int EQUAL = 0;
@@ -199,7 +199,7 @@ namespace Utils {
 		return EQUAL;
 	}
 
-	int CompareU(const bi_int& a, const bi_int& b) {
+	int CompareU(const BigInt_T& a, const BigInt_T& b) {
 
 		// The two numbers are identical
 		constexpr int EQUAL = 0;
@@ -234,18 +234,18 @@ namespace Utils {
 		return EQUAL;
 	}
 
-	void Negate(bi_int& data) {
+	void Negate(BigInt_T& data) {
 
 		data.Sign = !data.Sign;
 	}
 
-	void Abs(bi_int& data) {
+	void Abs(BigInt_T& data) {
 
 		if (data.Sign == BI_MINUS_SIGN)
 			data.Sign = BI_PLUS_SIGN;
 	}
 
-	void Increment(bi_int& data) {
+	void Increment(BigInt_T& data) {
 
 		const std::size_t actualSize = CountSignificantWords(data);
 
@@ -293,7 +293,7 @@ namespace Utils {
 		}
 	}
 
-	void Decrement(bi_int& data) {
+	void Decrement(BigInt_T& data) {
 
 		const std::size_t actualSize = CountSignificantWords(data);
 
@@ -343,7 +343,7 @@ namespace Utils {
 		}
 	}
 
-	void Add(bi_int& a, const bi_int& b) {
+	void Add(BigInt_T& a, const BigInt_T& b) {
 
 		if (a.Sign == b.Sign)
 			AddU(a, b);
@@ -359,7 +359,7 @@ namespace Utils {
 
 			else if (cmp < 0) {
 
-				bi_int c = b;
+				BigInt_T c = b;
 				SubU(c, a);
 				if (c.Size >= a.Size)
 					Move(a, c);
@@ -374,7 +374,7 @@ namespace Utils {
 		}
 	}
 
-	void AddU(bi_int& a, const bi_int& b) {
+	void AddU(BigInt_T& a, const BigInt_T& b) {
 
 		std::size_t size = std::max(CountSignificantWords(a), CountSignificantWords(b));
 		if (a.Size < size)
@@ -402,7 +402,7 @@ namespace Utils {
 		}
 	}
 
-	void Sub(bi_int& a, const bi_int& b) {
+	void Sub(BigInt_T& a, const BigInt_T& b) {
 
 		if (a.Sign != b.Sign)
 			AddU(a, b);
@@ -418,7 +418,7 @@ namespace Utils {
 
 			else if (cmp < 0) {
 
-				bi_int c = b;
+				BigInt_T c = b;
 				SubU(c, a);
 				if (c.Size >= a.Size)
 					Move(a, c);
@@ -434,7 +434,7 @@ namespace Utils {
 		}
 	}
 
-	void SubU(bi_int& a, const bi_int& b) {
+	void SubU(BigInt_T& a, const BigInt_T& b) {
 
 		// @TODO: ASSERT THAT a.Size > b.Size and Compare(a, b) > 1 || Compare(a, b) == 0
 
@@ -450,7 +450,7 @@ namespace Utils {
 		}
 	}
 
-	void Mult(bi_int& first, const bi_int& second) {
+	void Mult(BigInt_T& first, const BigInt_T& second) {
 
 		std::size_t firstSize = CountSignificantWords(first);
 		std::size_t secondSize = CountSignificantWords(second);
@@ -502,9 +502,9 @@ namespace Utils {
 		};
 
 		// Multiply by word
-		static std::function<void(bi_int&, WORD)> MultiplyByWord
+		static std::function<void(BigInt_T&, WORD)> MultiplyByWord
 		=
-		[](bi_int& a, WORD c) {
+		[](BigInt_T& a, WORD c) {
 
 			std::uint64_t carry = 0;
 			for (std::size_t i = 0; i < a.Size; i++) {
@@ -523,9 +523,9 @@ namespace Utils {
 		};
 
 		// Basecase multiplication
-		static std::function<void(bi_int&, const bi_int&)> Basecase
+		static std::function<void(BigInt_T&, const BigInt_T&)> Basecase
 		=
-		[](bi_int& a, const bi_int& b) {
+		[](BigInt_T& a, const BigInt_T& b) {
 
 			const std::size_t aSize = CountSignificantWords(a);
 			const std::size_t bSize = CountSignificantWords(b);
@@ -549,13 +549,13 @@ namespace Utils {
 				return;
 			}
 
-			bi_int c;
+			BigInt_T c;
 			Resize(c, aSize);
 			Copy(c, a);
 			MultiplyByWord(a, b.Buffer[0]);
 			for (std::size_t j = 1; j < bSize; j++) {
 
-				bi_int d;
+				BigInt_T d;
 				Resize(d, aSize + 1 + j);
 				Copy(d, c);
 				MultiplyByWord(d, b.Buffer[j]);
@@ -565,9 +565,9 @@ namespace Utils {
 		};
 
 		// Karatsuba algorithm
-		static std::function<void(bi_int&, const bi_int&)> Karatsuba
+		static std::function<void(BigInt_T&, const BigInt_T&)> Karatsuba
 		=
-		[](bi_int& a, const bi_int& b) {
+		[](BigInt_T& a, const BigInt_T& b) {
 
 			std::size_t aSize = CountSignificantWords(a);
 			std::size_t bSize = CountSignificantWords(b);
@@ -585,38 +585,38 @@ namespace Utils {
 			const std::size_t sp = size / 2;
 
 			// A0
-			bi_int a0;
+			BigInt_T a0;
 			Resize(a0, sp);
 			for (std::size_t i = 0; i < sp; i++)
 				a0.Buffer[i] = i < aSize ? a.Buffer[i] : 0;
 
 			// A1
-			bi_int a1;
+			BigInt_T a1;
 			Resize(a1, sp + 2); // Plus 2 for the possible carry in the later sum
 			for (std::size_t i = sp; i < size; i++)
 				a1.Buffer[i - sp] = i < aSize ? a.Buffer[i] : 0;
 
 			// B0
-			bi_int b0;
+			BigInt_T b0;
 			Resize(b0, sp);
 			for (std::size_t i = 0; i < sp; i++)
 				b0.Buffer[i] = i < bSize ? b.Buffer[i] : 0;
 
 			// B1
-			bi_int b1;
+			BigInt_T b1;
 			Resize(b1, sp + 2); // Plus 2 for the possible carry in the later sum
 			for (std::size_t i = sp; i < size; i++)
 				b1.Buffer[i - sp] = i < bSize ? b.Buffer[i] : 0;
 
 			// K1
-			bi_int k1;
+			BigInt_T k1;
 			std::size_t a1Size = CountSignificantWords(a1);
 			Resize(k1, a1Size + CountSignificantWords(b1) + 2 * sp);
 			bi_memcpy(k1.Buffer, k1.Size * sizeof(WORD), a1.Buffer, a1Size * sizeof(WORD));
 			Karatsuba(k1, b1);
 
 			// K2
-			bi_int k2;
+			BigInt_T k2;
 			AddU(a1, a0);
 			AddU(b1, b0);
 			a1Size = CountSignificantWords(a1);
@@ -625,7 +625,7 @@ namespace Utils {
 			Karatsuba(k2, b1);
 
 			// K3
-			bi_int k3;
+			BigInt_T k3;
 			std::size_t a0Size = CountSignificantWords(a0);
 			Resize(k3, a0Size + CountSignificantWords(b0));
 			bi_memcpy(k3.Buffer, k3.Size * sizeof(WORD), a0.Buffer, a0Size * sizeof(WORD));
@@ -644,14 +644,14 @@ namespace Utils {
 		};
 
 		// Toom-Cook 3-Way algorithm
-		static std::function<void(bi_int&, const bi_int&)> ToomCook3
+		static std::function<void(BigInt_T&, const BigInt_T&)> ToomCook3
 		=
-		[](bi_int& a, const bi_int& b) {
+		[](BigInt_T& a, const BigInt_T& b) {
 
 			// Multiply by word
 			auto MultiplyByWord
 			=
-			[](bi_int& a, WORD c) {
+			[](BigInt_T& a, WORD c) {
 
 				std::uint32_t* buffer = (std::uint32_t*)a.Buffer;
 				std::uint64_t carry = 0;
@@ -667,7 +667,7 @@ namespace Utils {
 			// Divide by word
 			auto DivideByWord
 			=
-			[](bi_int& a, std::uint32_t c) {
+			[](BigInt_T& a, std::uint32_t c) {
 
 				constexpr std::uint64_t BASE = (std::uint64_t)1 << 32;
 
@@ -733,7 +733,7 @@ namespace Utils {
 			const std::size_t size = std::max(aSize, bSize);
 			const std::size_t k = (std::size_t)std::ceil((long double)size / 3.0);
 
-			bi_int a0, a1, a2, b0, b1, b2;
+			BigInt_T a0, a1, a2, b0, b1, b2;
 			Resize(a0, k);
 			Resize(a1, k + 1);
 			Resize(a2, size - 2 * k + 1);
@@ -766,43 +766,43 @@ namespace Utils {
 				b2.Buffer[i - 2 * k] = i < bSize ? b.Buffer[i] : 0;
 
 			// A02
-			bi_int a02;
+			BigInt_T a02;
 			Resize(a02, std::max(CountSignificantWords(a0), CountSignificantWords(a2)) + 1);
 			Copy(a02, a0);
 			AddU(a02, a2);
 
 			// B02
-			bi_int b02;
+			BigInt_T b02;
 			Resize(b02, std::max(CountSignificantWords(b0), CountSignificantWords(b2)) + 1);
 			Copy(b02, b0);
 			AddU(b02, b2);
 
 			// A012
-			bi_int a012;
+			BigInt_T a012;
 			Resize(a012, std::max(CountSignificantWords(a02), CountSignificantWords(a1)) + 1);
 			Copy(a012, a02);
 			AddU(a012, a1);
 
 			// B012
-			bi_int b012;
+			BigInt_T b012;
 			Resize(b012, std::max(CountSignificantWords(b02), CountSignificantWords(b1)) + 1);
 			Copy(b012, b02);
 			AddU(b012, b1);
 
 			// V0
-			bi_int v0;
+			BigInt_T v0;
 			Resize(v0, CountSignificantWords(a0) + CountSignificantWords(b0));
 			Copy(v0, a0);
 			ToomCook3(v0, b0);
 
 			// V1
-			bi_int v1;
+			BigInt_T v1;
 			Resize(v1, CountSignificantWords(a012) + CountSignificantWords(b012));
 			Copy(v1, a012);
 			ToomCook3(v1, b012);
 
 			// Vm1
-			bi_int vm1;
+			BigInt_T vm1;
 			Sub(a02, a1);
 			Sub(b02, b1);
 			Resize(vm1, CountSignificantWords(a02) + CountSignificantWords(b02) + 1);
@@ -823,14 +823,14 @@ namespace Utils {
 			ShiftLeft(b2, 2);
 
 			// A0_2A1_4A2
-			bi_int a0_2a1_4a2;
+			BigInt_T a0_2a1_4a2;
 			Resize(a0_2a1_4a2, std::max(CountSignificantWords(a0), std::max(CountSignificantWords(a1), CountSignificantWords(a2))) + 1);
 			Copy(a0_2a1_4a2, a0);
 			AddU(a0_2a1_4a2, a1);
 			AddU(a0_2a1_4a2, a2);
 
 			// B0_2B1_4B2
-			bi_int b0_2b1_4b2;
+			BigInt_T b0_2b1_4b2;
 			Resize(b0_2b1_4b2, std::max(CountSignificantWords(b0), std::max(CountSignificantWords(b1), CountSignificantWords(b2))) + 1);
 			Copy(b0_2b1_4b2, b0);
 			AddU(b0_2b1_4b2, b1);
@@ -843,13 +843,13 @@ namespace Utils {
 			ShiftRight(b2, 2);
 
 			// V2
-			bi_int v2;
+			BigInt_T v2;
 			Resize(v2, CountSignificantWords(a0_2a1_4a2) + CountSignificantWords(b0_2b1_4b2));
 			Copy(v2, a0_2a1_4a2);
 			ToomCook3(v2, b0_2b1_4b2);
 
 			// Vinf
-			bi_int vinf;
+			BigInt_T vinf;
 			Resize(vinf, CountSignificantWords(a2) + CountSignificantWords(b2) + 1);
 			Copy(vinf, a2);
 			ToomCook3(vinf, b2);
@@ -861,7 +861,7 @@ namespace Utils {
 			ShiftLeft(vinf, 1);
 
 			// 3*V0
-			bi_int _3v0;
+			BigInt_T _3v0;
 			Resize(_3v0, std::max(CountSignificantWords(v0) + 1, std::max(CountSignificantWords(vm1), CountSignificantWords(v2))) + 1);
 			Copy(_3v0, v0);
 			MultiplyByWord(_3v0, 3); // Multiply by 3
@@ -871,7 +871,7 @@ namespace Utils {
 			DivideByWord(_3v0, 3); // Division by 3
 
 			// T1
-			bi_int t1;
+			BigInt_T t1;
 			Resize(t1, std::max(CountSignificantWords(_3v0), CountSignificantWords(vinf)));
 			Copy(t1, _3v0);
 			Sub(t1, vinf);
@@ -883,36 +883,36 @@ namespace Utils {
 			ShiftRight(vinf, 1);
 
 			// T2
-			bi_int t2;
+			BigInt_T t2;
 			Resize(t2, std::max(CountSignificantWords(v1), CountSignificantWords(vm1)) + 1);
 			Copy(t2, v1);
 			Add(t2, vm1);
 			ShiftRight(t2, 1);
 
 			// C0
-			const bi_int& c0 = v0;
+			const BigInt_T& c0 = v0;
 
 			// C1
-			bi_int c1;
+			BigInt_T c1;
 			Resize(c1, std::max(CountSignificantWords(v1), CountSignificantWords(t1)) + k);
 			Copy(c1, v1);
 			Sub(c1, t1);
 
 			// C2
-			bi_int c2;
+			BigInt_T c2;
 			Resize(c2, std::max(CountSignificantWords(t2), std::max(CountSignificantWords(v0), CountSignificantWords(vinf))) + 2 * k);
 			Copy(c2, t2);
 			Sub(c2, v0);
 			Sub(c2, vinf);
 
 			// C3
-			bi_int c3;
+			BigInt_T c3;
 			Resize(c3, std::max(CountSignificantWords(t1), CountSignificantWords(t2)) + 3 * k);
 			Copy(c3, t1);
 			Sub(c3, t2);
 
 			// C4
-			bi_int c4;
+			BigInt_T c4;
 			Resize(c4, CountSignificantWords(vinf) + 4 * k);
 			Copy(c4, vinf);
 
@@ -938,20 +938,20 @@ namespace Utils {
 		first.Sign = first.Sign ^ second.Sign;
 	}
 
-	void Div(bi_int& a, const bi_int& b) {
+	void Div(BigInt_T& a, const BigInt_T& b) {
 
 		// Normalize
 	}
 
 	// --- Bitwise functions ---
 
-	void Not(bi_int& data) {
+	void Not(BigInt_T& data) {
 
 		for (std::size_t i = 0; i < data.Size; i++)
 			data.Buffer[i] = ~data.Buffer[i];
 	}
 
-	void And(bi_int& first, const bi_int& second) {
+	void And(BigInt_T& first, const BigInt_T& second) {
 
 		if (first.Size > second.Size) {
 
@@ -969,7 +969,7 @@ namespace Utils {
 		}
 	}
 
-	void Or(bi_int& first, const bi_int& second) {
+	void Or(BigInt_T& first, const BigInt_T& second) {
 
 		if (first.Size > second.Size) {
 
@@ -987,7 +987,7 @@ namespace Utils {
 		}
 	}
 
-	void Xor(bi_int& first, const bi_int& second) {
+	void Xor(BigInt_T& first, const BigInt_T& second) {
 
 		if (first.Size > second.Size) {
 
@@ -1005,7 +1005,7 @@ namespace Utils {
 		}
 	}
 
-	void ShiftLeft(bi_int& data, std::size_t bit_shift_amount) {
+	void ShiftLeft(BigInt_T& data, std::size_t bit_shift_amount) {
 
 		if (bit_shift_amount > data.Size * sizeof(WORD) * 8) {
 
@@ -1040,7 +1040,7 @@ namespace Utils {
 		}
 	}
 
-	void ShiftRight(bi_int& data, std::size_t bit_shift_amount) {
+	void ShiftRight(BigInt_T& data, std::size_t bit_shift_amount) {
 
 		if (bit_shift_amount >= data.Size * sizeof(WORD) * 8) {
 
@@ -1079,7 +1079,7 @@ namespace Utils {
 
 	// --- String functions ---
 
-	std::string ToString(const bi_int& data) {
+	std::string ToString(const BigInt_T& data) {
 
 		// Shifts left by one bit
 		void(*ShiftLeft1)(std::uint8_t* buffer, std::size_t size_in_bytes)
@@ -1200,7 +1200,7 @@ namespace Utils {
 		return digitStr;
 	}
 
-	bool FromString(bi_int& data, const std::string& str) {
+	bool FromString(BigInt_T& data, const std::string& str) {
 
 		// Shifts right by one bit
 		void(*ShiftRight1)(std::uint8_t* buffer, std::size_t size_in_bytes)

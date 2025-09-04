@@ -28,7 +28,7 @@ namespace big {
 		}
 
 		else
-			m_Data = bi_int(n, sign);
+			m_Data = BigInt_T(n, sign);
 	}
 
 	Integer::Integer(const std::string& str, std::size_t size)
@@ -253,7 +253,7 @@ namespace big {
 
 // --- Big integer structure ---
 
-bi_int::bi_int()
+BigInt_T::BigInt_T()
 	: Buffer(nullptr), Size(1), Sign(BI_PLUS_SIGN), SNO(0)
 
 {
@@ -261,7 +261,7 @@ bi_int::bi_int()
 	Buffer = &SNO;
 }
 
-bi_int::bi_int(WORD sno, bool sign)
+BigInt_T::BigInt_T(WORD sno, bool sign)
 	: Buffer(nullptr), Size(1), Sign(sign), SNO(sno)
 
 {
@@ -269,12 +269,12 @@ bi_int::bi_int(WORD sno, bool sign)
 	Buffer = &SNO;
 }
 
-bi_int::bi_int(WORD* buffer, std::size_t size, bool sign)
+BigInt_T::BigInt_T(WORD* buffer, std::size_t size, bool sign)
 	: Buffer(buffer), Size(size), Sign(sign), SNO(0)
 
 {}
 
-bi_int::bi_int(const bi_int& other)
+BigInt_T::BigInt_T(const BigInt_T& other)
 	: Buffer(nullptr), Size(0), Sign(BI_PLUS_SIGN), SNO(0)
 
 {
@@ -294,7 +294,7 @@ bi_int::bi_int(const bi_int& other)
 	}
 }
 
-bi_int::bi_int(bi_int&& other) noexcept
+BigInt_T::BigInt_T(BigInt_T&& other) noexcept
 	: Buffer(nullptr), Size(0), Sign(BI_PLUS_SIGN), SNO(0)
 
 {
@@ -313,7 +313,7 @@ bi_int::bi_int(bi_int&& other) noexcept
 		Utils::Move(*this, other);
 }
 
-bi_int& bi_int::operator=(const bi_int& other) {
+BigInt_T& BigInt_T::operator=(const BigInt_T& other) {
 
 	if (Utils::IsOnStack(other)) {
 
@@ -332,7 +332,7 @@ bi_int& bi_int::operator=(const bi_int& other) {
 	return *this;
 }
 
-bi_int& bi_int::operator=(bi_int&& other) noexcept {
+BigInt_T& BigInt_T::operator=(BigInt_T&& other) noexcept {
 
 	if (Utils::IsOnStack(other)) {
 
@@ -350,7 +350,7 @@ bi_int& bi_int::operator=(bi_int&& other) noexcept {
 	return *this;
 }
 
-bi_int::~bi_int() {
+BigInt_T::~BigInt_T() {
 
 	Utils::Clear(*this);
 }

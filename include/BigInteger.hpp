@@ -56,19 +56,19 @@ typedef std::uint64_t WORD;
 #define BI_PLUS_SIGN 0
 #define BI_MINUS_SIGN std::numeric_limits<bool>::max()
 
-// The big integer structure
-class BI_API bi_int {
+// The big integer base structure type
+class BI_API BigInt_T {
 
 public:
 
-	bi_int();
-	bi_int(WORD sno, bool sign);
-	bi_int(WORD* buffer, std::size_t size, bool sign);
-	bi_int(const bi_int& other);
-	bi_int(bi_int&& other) noexcept;
-	bi_int& operator=(const bi_int& other);
-	bi_int& operator=(bi_int&& other) noexcept;
-	~bi_int();
+	BigInt_T();
+	BigInt_T(WORD sno, bool sign);
+	BigInt_T(WORD* buffer, std::size_t size, bool sign);
+	BigInt_T(const BigInt_T& other);
+	BigInt_T(BigInt_T&& other) noexcept;
+	BigInt_T& operator=(const BigInt_T& other);
+	BigInt_T& operator=(BigInt_T&& other) noexcept;
+	~BigInt_T();
 
 	// The big integer buffer
 	WORD* Buffer;
@@ -150,6 +150,6 @@ namespace big {
 		void InitFromInt(WORD n, bool sign, std::size_t capacity);
 
 		// Normal big integer data structure
-		bi_int m_Data;
+		BigInt_T m_Data;
 	};
 }
