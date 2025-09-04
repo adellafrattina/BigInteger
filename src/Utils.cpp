@@ -376,7 +376,7 @@ namespace Utils {
 
 	void AddU(bi_int& a, const bi_int& b) {
 
-		std::size_t size = std::max(a.Size, b.Size);
+		std::size_t size = std::max(CountSignificantWords(a), CountSignificantWords(b));
 		if (a.Size < size)
 			Resize(a, size);
 
@@ -391,8 +391,14 @@ namespace Utils {
 
 		if (carry != 0) {
 
-			Resize(a, a.Size + 1);
-			a.Buffer[a.Size - 1] = 1;
+			if (size < a.Size)
+				a.Buffer[size] = 1;
+
+			else {
+
+				Resize(a, size + 1);
+				a.Buffer[a.Size - 1] = 1;
+			}
 		}
 	}
 
@@ -463,13 +469,66 @@ namespace Utils {
 			}
 		}
 
-		std::function<void(bi_int&, const bi_int&)> Karatsuba;
-		Karatsuba
+		// Multiply two 64-bit numbers and store the result in a 128-bit word
+		static std::function<void(std::uint64_t, std::uint64_t, std::uint64_t&, std::uint64_t&)> MultU128
 		=
-		[&Karatsuba](bi_int& a, const bi_int& b) {
+		[](std::uint64_t a, std::uint64_t b, std::uint64_t& low, std::uint64_t& high) {
 
-			std::size_t aSize = CountSignificantWords(a);
-			std::size_t bSize = CountSignificantWords(b);
+			/*
+
+				Applied formula:
+
+				(a_high × 2^32 + a_low) × (b_high × 2^32 + b_low)
+				= a_high×b_high×2^64 + (a_high×b_low + a_low×b_high)×2^32 + a_low×b_low
+
+			*/
+
+			// Split
+			std::uint64_t aLow = a & 0xFFFFFFFFULL;
+			std::uint64_t aHigh = a >> 32;
+			std::uint64_t bLow = b & 0xFFFFFFFFULL;
+			std::uint64_t bHigh = b >> 32;
+
+			std::uint64_t ll = aLow * bLow;
+			std::uint64_t lh = aLow * bHigh;
+			std::uint64_t hl = aHigh * bLow;
+			std::uint64_t hh = aHigh * bHigh;
+
+			std::uint64_t middle1 = (ll >> 32) + (lh & 0xFFFFFFFFULL) + (hl & 0xFFFFFFFFULL);
+			std::uint64_t middle2 = (lh >> 32) + (hl >> 32) + (middle1 >> 32);
+
+			low = (ll & 0xFFFFFFFFULL) | (middle1 << 32);
+			high = hh + middle2;
+		};
+
+		// Multiply by word
+		static std::function<void(bi_int&, WORD)> MultiplyByWord
+		=
+		[](bi_int& a, WORD c) {
+
+			std::uint64_t carry = 0;
+			for (std::size_t i = 0; i < a.Size; i++) {
+
+				// Multiply two 64-bit words to get a 128-bit one
+				std::uint64_t low, high;
+				MultU128(a.Buffer[i], c, low, high);
+
+				std::uint64_t temp = low + carry;
+				if (temp < low)
+					++high;
+
+				a.Buffer[i] = temp;
+				carry = high;
+			}
+		};
+
+		// Basecase multiplication
+		static std::function<void(bi_int&, const bi_int&)> Basecase
+		=
+		[](bi_int& a, const bi_int& b) {
+
+			const std::size_t aSize = CountSignificantWords(a);
+			const std::size_t bSize = CountSignificantWords(b);
 
 			if (aSize == 1 && bSize == 1) {
 
@@ -480,38 +539,42 @@ namespace Utils {
 				{
 
 					*a.Buffer *= *b.Buffer;
-
-					return;
 				}
 
-				/*
+				else {
 
-					Applied formula:
+					MultU128(a.Buffer[0], b.Buffer[0], a.Buffer[0], a.Buffer[1]);
+				}
 
-					(a_high × 2^32 + a_low) × (b_high × 2^32 + b_low)
-					= a_high×b_high×2^64 + (a_high×b_low + a_low×b_high)×2^32 + a_low×b_low
+				return;
+			}
 
-				*/
+			bi_int c;
+			Resize(c, aSize);
+			Copy(c, a);
+			MultiplyByWord(a, b.Buffer[0]);
+			for (std::size_t j = 1; j < bSize; j++) {
 
-				// Split
-				std::uint64_t aLow = *a.Buffer & 0xFFFFFFFFULL;
-				std::uint64_t aHigh = *a.Buffer >> 32;
-				std::uint64_t bLow = *b.Buffer & 0xFFFFFFFFULL;
-				std::uint64_t bHigh = *b.Buffer >> 32;
+				bi_int d;
+				Resize(d, aSize + 1 + j);
+				Copy(d, c);
+				MultiplyByWord(d, b.Buffer[j]);
+				ShiftLeft(d, j * sizeof(WORD) * 8);
+				AddU(a, d);
+			}
+		};
 
-				std::uint64_t ll = aLow * bLow;
-				std::uint64_t lh = aLow * bHigh;
-				std::uint64_t hl = aHigh * bLow;
-				std::uint64_t hh = aHigh * bHigh;
+		// Karatsuba algorithm
+		static std::function<void(bi_int&, const bi_int&)> Karatsuba
+		=
+		[](bi_int& a, const bi_int& b) {
 
-				std::uint64_t middle1 = (ll >> 32) + (lh & 0xFFFFFFFFULL) + (hl & 0xFFFFFFFFULL);
-				std::uint64_t middle2 = (lh >> 32) + (hl >> 32) + (middle1 >> 32);
+			std::size_t aSize = CountSignificantWords(a);
+			std::size_t bSize = CountSignificantWords(b);
 
-				// Not likely, but just to be sure
-				if (a.Size == 1)
-					Resize(a, 2);
-				a.Buffer[0] = (ll & 0xFFFFFFFFULL) | (middle1 << 32);
-				a.Buffer[1] = hh + middle2;
+			if (aSize < 1024 || bSize < 1024) {
+
+				Basecase(a, b);
 
 				return;
 			}
@@ -580,10 +643,10 @@ namespace Utils {
 			AddU(a, k3);
 		};
 
-		std::function<void(bi_int&, const bi_int&)> ToomCook3;
-		ToomCook3
+		// Toom-Cook 3-Way algorithm
+		static std::function<void(bi_int&, const bi_int&)> ToomCook3
 		=
-		[&ToomCook3, &Karatsuba](bi_int& a, const bi_int& b) {
+		[](bi_int& a, const bi_int& b) {
 
 			// Multiply by word
 			auto MultiplyByWord
@@ -608,28 +671,9 @@ namespace Utils {
 
 				constexpr std::uint64_t BASE = (std::uint64_t)1 << 32;
 
-				// Inverse module
-				auto ModInverse
-				=
-				[&BASE](std::uint32_t c) {
-
-					std::int64_t t = 0, newt = 1;
-					std::int64_t r = BASE, newr = c;
-
-					while (newr != 0) {
-						std::uint64_t quotient = r / newr;
-						std::tie(t, newt) = std::make_pair(newt, t - quotient * newt);
-						std::tie(r, newr) = std::make_pair(newr, r - quotient * newr);
-					}
-
-					if (t < 0) t += BASE;
-
-					return (std::uint32_t)t;
-				};
-
 				std::uint32_t* buffer = (std::uint32_t*)a.Buffer;
 				std::size_t n = a.Size * 2;
-				std::uint32_t d = ModInverse(c);
+				std::uint32_t d = 2863311531U; // Precomputed inverse module between 3 and 2^32
 				std::uint32_t b = 0;
 				for (size_t i = 0; i < n; ++i) {
 
@@ -661,7 +705,23 @@ namespace Utils {
 			const std::size_t aSize = CountSignificantWords(a);
 			const std::size_t bSize = CountSignificantWords(b);
 
-			if (aSize < 9 && bSize < 9) {
+			if (aSize < 30000 || bSize < 30000) {
+
+				// If the first factor is equal to zero, do not bother executing the algorithm
+				if (aSize == 1)
+					if (a.Buffer[0] == 0)
+						return;
+
+				// Same thing for the other factor
+				if (bSize == 1) {
+
+					if (b.Buffer[0] == 0) {
+
+						memset(a.Buffer, 0, a.Size * sizeof(WORD));
+
+						return;
+					}
+				}
 
 				Karatsuba(a, b);
 
@@ -747,8 +807,8 @@ namespace Utils {
 			Sub(b02, b1);
 			Resize(vm1, CountSignificantWords(a02) + CountSignificantWords(b02) + 1);
 			Copy(vm1, a02);
-			vm1.Sign = a02.Sign ^ b02.Sign;
 			ToomCook3(vm1, b02);
+			vm1.Sign = a02.Sign ^ b02.Sign;
 
 			// a1 -> 2*a1
 			ShiftLeft(a1, 1);
@@ -872,8 +932,7 @@ namespace Utils {
 		Resize(first, std::max(std::max(first.Size, second.Size), firstSize + secondSize));
 
 		// Multiply
-		//ToomCook3(first, second); TODO: Fix problem
-		Karatsuba(first, second);
+		ToomCook3(first, second);
 
 		// Establish sign
 		first.Sign = first.Sign ^ second.Sign;
