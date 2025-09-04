@@ -992,12 +992,9 @@ namespace Utils {
 
 	void ShiftLeft(BigInt_T& data, std::size_t bit_shift_amount) {
 
-		if (bit_shift_amount > data.Size * sizeof(WORD) * 8) {
-
-			memset(data.Buffer, 0, data.Size * sizeof(WORD));
-
-			return;
-		}
+		const std::size_t bits = CountSignificantBits(data);
+		if (bit_shift_amount > (data.Size * sizeof(WORD) * 8 - bits))
+			Resize(data, (std::size_t)std::ceil((long double)(bit_shift_amount + bits) / (sizeof(WORD) * 8)));
 
 		WORD*& buffer = data.Buffer;
 		std::size_t offset = bit_shift_amount / (sizeof(WORD) * 8);
@@ -1027,7 +1024,7 @@ namespace Utils {
 
 	void ShiftRight(BigInt_T& data, std::size_t bit_shift_amount) {
 
-		if (bit_shift_amount >= data.Size * sizeof(WORD) * 8) {
+		if (bit_shift_amount >= CountSignificantBits(data)) {
 
 			memset(data.Buffer, 0, data.Size * sizeof(WORD));
 
