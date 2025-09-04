@@ -2,7 +2,7 @@ project "test"
 	location "../build/test/"
 	staticruntime ("" .. sruntime .. "")
 	language "C++"
-	cppdialect "C++20"
+	cppdialect "C++11"
 	targetdir ("" .. tdir .. "/%{prj.name}")
 	objdir ("" .. odir .. "/%{prj.name}")
 	kind "ConsoleApp"

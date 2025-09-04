@@ -2,7 +2,7 @@ project "bi-core"
 	location "../build/bi-core/"
 	staticruntime ("" .. sruntime .. "")
 	language "C++"
-	cppdialect "C++20"
+	cppdialect "C++11"
 	targetdir ("" .. tdir .. "/%{prj.name}")
 	objdir ("" .. odir .. "/%{prj.name}")
 	targetname ("BigInteger")
