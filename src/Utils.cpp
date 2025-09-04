@@ -438,7 +438,7 @@ namespace Utils {
 
 		// @TODO: ASSERT THAT a.Size > b.Size and Compare(a, b) > 1 || Compare(a, b) == 0
 
-		std::int64_t borrow = 0;
+		WORD borrow = 0;
 		for (std::size_t i = 0; i < a.Size; i++) {
 
 			const WORD& ai = a.Buffer[i];
@@ -457,9 +457,9 @@ namespace Utils {
 
 		if (firstSize == 1 && secondSize == 1) {
 
-			// If the number is less than 4294967295, we can simply multiply the two buffers
-			if (*first.Buffer <= std::numeric_limits<std::uint32_t>::max() &&
-				*second.Buffer <= std::numeric_limits<std::uint32_t>::max())
+			// If the number is less than BI_MAX_HALFWORD, we can simply multiply the two buffers
+			if (*first.Buffer <= BI_MAX_HALFWORD &&
+				*second.Buffer <= BI_MAX_HALFWORD)
 
 			{
 
@@ -469,10 +469,10 @@ namespace Utils {
 			}
 		}
 
-		// Multiply two 64-bit numbers and store the result in a 128-bit word
-		static std::function<void(std::uint64_t, std::uint64_t, std::uint64_t&, std::uint64_t&)> MultU128
+		// Multiply two word sized numbers and store the result in a dobule word sized number
+		static std::function<void(WORD, WORD, WORD&, WORD&)> MultU128
 		=
-		[](std::uint64_t a, std::uint64_t b, std::uint64_t& low, std::uint64_t& high) {
+		[](WORD a, WORD b, WORD& low, WORD& high) {
 
 			/*
 
@@ -483,21 +483,23 @@ namespace Utils {
 
 			*/
 
+			constexpr HALFWORD HALF_WORD_BITS = sizeof(WORD) * 4;
+
 			// Split
-			std::uint64_t aLow = a & 0xFFFFFFFFULL;
-			std::uint64_t aHigh = a >> 32;
-			std::uint64_t bLow = b & 0xFFFFFFFFULL;
-			std::uint64_t bHigh = b >> 32;
+			WORD aLow = a & BI_MAX_HALFWORD; //0xFFFFFFFFULL
+			WORD aHigh = a >> HALF_WORD_BITS;
+			WORD bLow = b & BI_MAX_HALFWORD;
+			WORD bHigh = b >> HALF_WORD_BITS;
 
-			std::uint64_t ll = aLow * bLow;
-			std::uint64_t lh = aLow * bHigh;
-			std::uint64_t hl = aHigh * bLow;
-			std::uint64_t hh = aHigh * bHigh;
+			WORD ll = aLow * bLow;
+			WORD lh = aLow * bHigh;
+			WORD hl = aHigh * bLow;
+			WORD hh = aHigh * bHigh;
 
-			std::uint64_t middle1 = (ll >> 32) + (lh & 0xFFFFFFFFULL) + (hl & 0xFFFFFFFFULL);
-			std::uint64_t middle2 = (lh >> 32) + (hl >> 32) + (middle1 >> 32);
+			WORD middle1 = (ll >> HALF_WORD_BITS) + (lh & BI_MAX_HALFWORD) + (hl & BI_MAX_HALFWORD);
+			WORD middle2 = (lh >> HALF_WORD_BITS) + (hl >> HALF_WORD_BITS) + (middle1 >> HALF_WORD_BITS);
 
-			low = (ll & 0xFFFFFFFFULL) | (middle1 << 32);
+			low = (ll & BI_MAX_HALFWORD) | (middle1 << HALF_WORD_BITS);
 			high = hh + middle2;
 		};
 
@@ -506,14 +508,13 @@ namespace Utils {
 		=
 		[](BigInt_T& a, WORD c) {
 
-			std::uint64_t carry = 0;
+			WORD carry = 0;
 			for (std::size_t i = 0; i < a.Size; i++) {
 
-				// Multiply two 64-bit words to get a 128-bit one
-				std::uint64_t low, high;
+				WORD low, high;
 				MultU128(a.Buffer[i], c, low, high);
 
-				std::uint64_t temp = low + carry;
+				WORD temp = low + carry;
 				if (temp < low)
 					++high;
 
@@ -533,8 +534,8 @@ namespace Utils {
 			if (aSize == 1 && bSize == 1) {
 
 				// If the number is less than 4294967295, we can simply multiply the two buffers
-				if (*a.Buffer <= std::numeric_limits<std::uint32_t>::max() &&
-					*b.Buffer <= std::numeric_limits<std::uint32_t>::max())
+				if (*a.Buffer <= BI_MAX_HALFWORD &&
+					*b.Buffer <= BI_MAX_HALFWORD)
 
 				{
 
@@ -648,37 +649,21 @@ namespace Utils {
 		=
 		[](BigInt_T& a, const BigInt_T& b) {
 
-			// Multiply by word
-			auto MultiplyByWord
+			// Divide by 3
+			auto DivideBy3
 			=
-			[](BigInt_T& a, WORD c) {
+			[](BigInt_T& a) {
 
-				std::uint32_t* buffer = (std::uint32_t*)a.Buffer;
-				std::uint64_t carry = 0;
-				std::size_t i = 0;
-				for (; i < a.Size * 2; i++) {
+				constexpr WORD BASE = (WORD)1 << (sizeof(WORD) * 4);
 
-					std::uint64_t product = (uint64_t)(buffer[i]) * c + carry;
-					buffer[i] = (std::uint32_t)product;
-					carry = product >> 32;
-				}
-			};
-
-			// Divide by word
-			auto DivideByWord
-			=
-			[](BigInt_T& a, std::uint32_t c) {
-
-				constexpr std::uint64_t BASE = (std::uint64_t)1 << 32;
-
-				std::uint32_t* buffer = (std::uint32_t*)a.Buffer;
-				std::size_t n = a.Size * 2;
-				std::uint32_t d = 2863311531U; // Precomputed inverse module between 3 and 2^32
-				std::uint32_t b = 0;
+				HALFWORD* buffer = (HALFWORD*)a.Buffer;
+				const std::size_t n = a.Size * 2;
+				constexpr WORD d = 2'863'311'531; // Precomputed inverse module between 3 and 2^32
+				HALFWORD b = 0;
 				for (size_t i = 0; i < n; ++i) {
 
-					std::uint64_t ai = buffer[i];
-					std::uint64_t x, b1;
+					WORD ai = buffer[i];
+					WORD x, b1;
 					if (b <= ai) {
 
 						x = ai - b;
@@ -691,12 +676,12 @@ namespace Utils {
 						b1 = 1;
 					}
 
-					std::uint64_t q = (d * x) % BASE;
-					buffer[i] = std::uint32_t(q);
+					WORD q = (d * x) % BASE;
+					buffer[i] = (HALFWORD)q;
 
-					std::uint64_t prod = std::uint64_t(q) * c;
-					std::uint64_t b2 = (prod - x) / BASE;
-					b = (std::uint32_t)(b1 + (std::uint32_t)b2);
+					WORD prod = (WORD)q * 3;
+					WORD b2 = (prod - x) / BASE;
+					b = (HALFWORD)(b1 + (HALFWORD)b2);
 				}
 
 				return b;
@@ -868,7 +853,7 @@ namespace Utils {
 			Add(_3v0, vm1);
 			Add(_3v0, v2);
 			ShiftRight(_3v0, 1); // Division by 2
-			DivideByWord(_3v0, 3); // Division by 3
+			DivideBy3(_3v0); // Division by 3
 
 			// T1
 			BigInt_T t1;
@@ -1033,7 +1018,7 @@ namespace Utils {
 
 			WORD bits = 0;
 			if (size)
-				bits = word[-1] & (UINT64_MAX << (sizeof(WORD) * 8 - rest));
+				bits = word[-1] & (BI_MAX_WORD << (sizeof(WORD) * 8 - rest));
 
 			*word <<= rest;
 			*word |= (bits >> (sizeof(WORD) * 8 - rest));
@@ -1070,7 +1055,7 @@ namespace Utils {
 
 			WORD bits = 0;
 			if (size)
-				bits = word[1] & (UINT64_MAX >> (sizeof(WORD) * 8 - rest));
+				bits = word[1] & (BI_MAX_WORD >> (sizeof(WORD) * 8 - rest));
 
 			*word >>= rest;
 			*word |= (bits << (sizeof(WORD) * 8 - rest));

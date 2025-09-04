@@ -14,7 +14,7 @@ namespace big {
 
 		rand.seed((unsigned)time(NULL));
 		for (std::size_t i = 0; i < n.m_Data.Size; i++)
-			n.m_Data.Buffer[i] = std::uint64_t(rand());
+			n.m_Data.Buffer[i] = WORD(rand());
 	}
 
 	void Integer::InitFromInt(WORD n, bool sign, std::size_t size) {

@@ -50,11 +50,46 @@
 	#define PRINT(fmt, ...) g_biprintfln(fmt, __TIME__, (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)), __LINE__, __VA_ARGS__)
 #endif
 
-// The operating system word
-typedef std::uint64_t WORD;
+#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || defined(__LP64__)
+
+	// The operating system word
+	typedef std::uint64_t WORD;
+
+	// The operating system half word
+	typedef std::uint32_t HALFWORD;
+
+#elif defined(__i386__) || defined(_M_IX86) || defined(__ILP32__) || defined(__i686__)
+
+	// The operating system word
+	typedef std::uint32_t WORD;
+
+	// The operating system half word
+	typedef std::uint16_t HALFWORD;
+
+#elif defined(_WIN64)
+
+	// The operating system word
+	typedef std::uint64_t WORD;
+
+	// The operating system half word
+	typedef std::uint32_t HALFWORD;
+
+#elif defined(_WIN32)
+
+	// The operating system word
+	typedef std::uint32_t WORD;
+
+	// The operating system half word
+	typedef std::uint16_t HALFWORD;
+
+#else
+	#error Unknown system architecture
+#endif
 
 #define BI_PLUS_SIGN 0
 #define BI_MINUS_SIGN std::numeric_limits<bool>::max()
+#define BI_MAX_WORD std::numeric_limits<WORD>::max()
+#define BI_MAX_HALFWORD std::numeric_limits<HALFWORD>::max()
 
 // The big integer base structure type
 class BI_API BigInt_T {
@@ -149,7 +184,7 @@ namespace big {
 
 		void InitFromInt(WORD n, bool sign, std::size_t capacity);
 
-		// Normal big integer data structure
+		// Big integer data structure
 		BigInt_T m_Data;
 	};
 }
