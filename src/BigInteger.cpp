@@ -10,9 +10,8 @@ namespace big {
 
 	void Integer::Rand(big::Integer& n) {
 
-		static std::minstd_rand rand;
+		static std::minstd_rand rand((unsigned)time(NULL));
 
-		rand.seed((unsigned)time(NULL));
 		for (std::size_t i = 0; i < n.m_Data.Size; i++)
 			n.m_Data.Buffer[i] = WORD(rand());
 	}
