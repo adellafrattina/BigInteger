@@ -1,5 +1,5 @@
-project "bi-core"
-	location "../build/bi-core/"
+project "big-core"
+	location "../build/big-core/"
 	staticruntime ("" .. sruntime .. "")
 	language "C++"
 	cppdialect "C++11"

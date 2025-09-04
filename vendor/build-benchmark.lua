@@ -1,5 +1,5 @@
-project "test"
-	location "../build/test/"
+project "benchmark"
+	location "../build/benchmark/"
 	staticruntime ("" .. sruntime .. "")
 	language "C++"
 	cppdialect "C++11"
@@ -9,7 +9,7 @@ project "test"
 
 	files {
 
-		"../examples/test/**"
+		"../examples/benchmark/**"
 	}
 
 	includedirs {
