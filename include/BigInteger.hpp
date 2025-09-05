@@ -161,24 +161,61 @@ namespace big {
 		friend BI_API std::istream& operator>>(std::istream& is, big::Integer& n);
 		friend BI_API std::ostream& operator<<(std::ostream& os, const big::Integer& n);
 
-		// Operator overloading
+		// Arithmetic operators
 
-		friend BI_API const big::Integer& operator++(big::Integer& n);
-		friend BI_API big::Integer operator++(big::Integer& n, int);
-
-		friend BI_API const big::Integer& operator--(big::Integer& n);
-		friend BI_API big::Integer operator--(big::Integer& n, int);
-
-		friend BI_API const big::Integer& operator+(big::Integer& n);
 		friend BI_API const big::Integer operator+(const big::Integer& a, const big::Integer& b);
-		friend BI_API const big::Integer& operator+=(big::Integer& a, const big::Integer& b);
-
-		friend BI_API const big::Integer& operator-(big::Integer& n);
 		friend BI_API const big::Integer operator-(const big::Integer& a, const big::Integer& b);
-		friend BI_API const big::Integer& operator-=(big::Integer& a, const big::Integer& b);
-
 		friend BI_API const big::Integer operator*(const big::Integer& a, const big::Integer& b);
-		friend BI_API const big::Integer& operator*=(big::Integer& a, const big::Integer& b);
+		friend BI_API const big::Integer operator/(const big::Integer& a, const big::Integer& b);
+		friend BI_API const big::Integer operator%(const big::Integer& a, const big::Integer& b);
+
+		// Relational and comparison operators
+
+		friend BI_API const bool operator==(const big::Integer& a, const big::Integer& b);
+		friend BI_API const bool operator!=(const big::Integer& a, const big::Integer& b);
+		friend BI_API const bool operator<(const big::Integer& a, const big::Integer& b);
+		friend BI_API const bool operator>(const big::Integer& a, const big::Integer& b);
+		friend BI_API const bool operator<=(const big::Integer& a, const big::Integer& b);
+		friend BI_API const bool operator>=(const big::Integer& a, const big::Integer& b);
+
+		// Logical operators
+
+		explicit operator bool() const;
+
+		// Bitwise operators
+
+		friend BI_API const big::Integer operator&(const big::Integer& a, const big::Integer& b);
+		friend BI_API const big::Integer operator|(const big::Integer& a, const big::Integer& b);
+		friend BI_API const big::Integer operator^(const big::Integer& a, const big::Integer& b);
+		friend BI_API const big::Integer operator~(const big::Integer& n);
+		friend BI_API const big::Integer operator<<(const big::Integer& n, std::size_t bits);
+		friend BI_API const big::Integer operator>>(const big::Integer& n, std::size_t bits);
+		friend BI_API const big::Integer operator<<(const big::Integer& n, big::Integer bits);
+		friend BI_API const big::Integer operator>>(const big::Integer& n, big::Integer bits);
+
+		// Assignment operators
+
+		friend BI_API big::Integer& operator+=(big::Integer& a, const big::Integer& b);
+		friend BI_API big::Integer& operator-=(big::Integer& a, const big::Integer& b);
+		friend BI_API big::Integer& operator*=(big::Integer& a, const big::Integer& b);
+		friend BI_API big::Integer& operator/=(big::Integer& a, const big::Integer& b);
+		friend BI_API big::Integer& operator%=(big::Integer& a, const big::Integer& b);
+		friend BI_API big::Integer& operator&=(big::Integer& a, const big::Integer& b);
+		friend BI_API big::Integer& operator|=(big::Integer& a, const big::Integer& b);
+		friend BI_API big::Integer& operator^=(big::Integer& a, const big::Integer& b);
+		friend BI_API big::Integer& operator<<=(big::Integer& n, std::size_t bits);
+		friend BI_API big::Integer& operator>>=(big::Integer& n, std::size_t bits);
+		friend BI_API big::Integer& operator<<=(big::Integer& n, big::Integer bits);
+		friend BI_API big::Integer& operator>>=(big::Integer& n, big::Integer bits);
+
+		// Unary operators
+
+		friend BI_API big::Integer& operator+(big::Integer& n);
+		friend BI_API big::Integer& operator++(big::Integer& n);
+		friend BI_API big::Integer operator++(big::Integer& n, int);
+		friend BI_API big::Integer& operator-(big::Integer& n);
+		friend BI_API big::Integer& operator--(big::Integer& n);
+		friend BI_API big::Integer operator--(big::Integer& n, int);
 
 	private:
 

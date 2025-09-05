@@ -151,7 +151,7 @@ namespace big {
 
 	// Stream
 
-	std::istream& operator>>(std::istream& is, big::Integer& n) {
+	BI_API std::istream& operator>>(std::istream& is, big::Integer& n) {
 
 		std::string str;
 		is >> str;
@@ -162,49 +162,14 @@ namespace big {
 		return is;
 	}
 
-	std::ostream& operator<<(std::ostream& os, const big::Integer& n) {
+	BI_API std::ostream& operator<<(std::ostream& os, const big::Integer& n) {
 
 		return os << n.ToString();
 	}
 
-	// Operator overloading
+	// Arithmetic operators
 
-	const big::Integer& operator++(big::Integer& n) {
-
-		Utils::Increment(n.m_Data);
-
-		return n;
-	}
-
-	big::Integer operator++(big::Integer& n, int) {
-
-		big::Integer cpy(n);
-		Utils::Increment(n.m_Data);
-
-		return cpy;
-	}
-
-	const big::Integer& operator--(big::Integer& n) {
-
-		Utils::Decrement(n.m_Data);
-
-		return n;
-	}
-
-	big::Integer operator--(big::Integer& n, int) {
-
-		big::Integer cpy(n);
-		Utils::Decrement(n.m_Data);
-
-		return cpy;
-	}
-
-	const big::Integer& operator+(big::Integer& n) {
-
-		return n;
-	}
-
-	const big::Integer operator+(const big::Integer& a, const big::Integer& b) {
+	BI_API const big::Integer operator+(const big::Integer& a, const big::Integer& b) {
 
 		big::Integer num(a);
 		Utils::Add(num.m_Data, b.m_Data);
@@ -212,21 +177,7 @@ namespace big {
 		return num;
 	}
 
-	const big::Integer& operator+=(big::Integer& a, const big::Integer& b) {
-
-		Utils::Add(a.m_Data, b.m_Data);
-
-		return a;
-	}
-
-	const big::Integer& operator-(big::Integer& n) {
-
-		Utils::Negate(n.m_Data);
-
-		return n;
-	}
-
-	const big::Integer operator-(const big::Integer& a, const big::Integer& b) {
+	BI_API const big::Integer operator-(const big::Integer& a, const big::Integer& b) {
 
 		big::Integer num(a);
 		Utils::Sub(num.m_Data, b.m_Data);
@@ -234,7 +185,7 @@ namespace big {
 		return num;
 	}
 
-	const big::Integer operator*(const big::Integer& a, const big::Integer& b) {
+	BI_API const big::Integer operator*(const big::Integer& a, const big::Integer& b) {
 
 		big::Integer num(a);
 		Utils::Mult(num.m_Data, b.m_Data);
@@ -242,11 +193,278 @@ namespace big {
 		return num;
 	}
 
-	const big::Integer& operator*=(big::Integer& a, const big::Integer& b) {
+	BI_API const big::Integer operator/(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer num(a);
+		Utils::Div(num.m_Data, b.m_Data);
+
+		return num;
+	}
+
+	BI_API const big::Integer operator%(const big::Integer& a, const big::Integer& b) {
+
+		throw std::runtime_error("Not implemented yet");
+
+		return a;
+	}
+
+	// Relational and comparison operators
+
+	BI_API const bool operator==(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) == 0;
+	}
+
+	BI_API const bool operator!=(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) != 0;
+	}
+
+	BI_API const bool operator<(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) < 0;
+	}
+
+	BI_API const bool operator>(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) > 0;
+	}
+
+	BI_API const bool operator<=(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) < 0 || Utils::Compare(a.m_Data, b.m_Data) == 0;
+	}
+
+	BI_API const bool operator>=(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) > 0 || Utils::Compare(a.m_Data, b.m_Data) == 0;
+	}
+
+	// Logical operators
+
+	big::Integer::operator bool() const {
+
+		return !Utils::IsZero(this->m_Data);
+	}
+
+	// Bitwise operators
+
+	BI_API const big::Integer operator&(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer cpy(a);
+		Utils::And(cpy.m_Data, b.m_Data);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator|(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer cpy(a);
+		Utils::Or(cpy.m_Data, b.m_Data);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator^(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer cpy(a);
+		Utils::Xor(cpy.m_Data, b.m_Data);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator~(const big::Integer& n) {
+
+		big::Integer cpy(n);
+		Utils::Not(cpy.m_Data);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator<<(const big::Integer& n, std::size_t bits) {
+
+		big::Integer cpy(n);
+		Utils::ShiftLeft(cpy.m_Data, bits);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator>>(const big::Integer& n, std::size_t bits) {
+
+		big::Integer cpy(n);
+		Utils::ShiftRight(cpy.m_Data, bits);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator<<(const big::Integer& n, big::Integer bits) {
+
+		big::Integer cpy(n);
+		while (Utils::CountSignificantWords(bits.m_Data) != 1) {
+
+			Utils::ShiftLeft(cpy.m_Data, BI_MAX_WORD);
+			bits -= BI_MAX_WORD;
+		}
+
+		Utils::ShiftLeft(cpy.m_Data, bits.m_Data.Buffer[0]);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator>>(const big::Integer& n, big::Integer bits) {
+
+		big::Integer cpy(n);
+		while (Utils::CountSignificantWords(bits.m_Data) != 1) {
+
+			Utils::ShiftRight(cpy.m_Data, BI_MAX_WORD);
+			bits -= BI_MAX_WORD;
+		}
+
+		Utils::ShiftRight(cpy.m_Data, bits.m_Data.Buffer[0]);
+
+		return cpy;
+	}
+
+	// Assignment operators
+
+	BI_API big::Integer& operator+=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Add(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator-=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Sub(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator*=(big::Integer& a, const big::Integer& b) {
 
 		Utils::Mult(a.m_Data, b.m_Data);
 
 		return a;
+	}
+
+	BI_API big::Integer& operator/=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Div(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator%=(big::Integer& a, const big::Integer& b) {
+
+		throw std::runtime_error("Not implemented yet");
+
+		return a;
+	}
+
+	BI_API big::Integer& operator&=(big::Integer& a, const big::Integer& b) {
+
+		Utils::And(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator|=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Or(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator^=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Xor(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator<<=(big::Integer& n, std::size_t bits) {
+
+		Utils::ShiftLeft(n.m_Data, bits);
+
+		return n;
+	}
+
+	BI_API big::Integer& operator>>=(big::Integer& n, std::size_t bits) {
+
+		Utils::ShiftRight(n.m_Data, bits);
+
+		return n;
+	}
+
+	BI_API big::Integer& operator<<=(big::Integer& n, big::Integer bits) {
+
+		while (Utils::CountSignificantWords(bits.m_Data) != 1) {
+
+			Utils::ShiftLeft(n.m_Data, BI_MAX_WORD);
+			bits -= BI_MAX_WORD;
+		}
+
+		Utils::ShiftLeft(n.m_Data, bits.m_Data.Buffer[0]);
+
+		return n;
+	}
+
+	BI_API big::Integer& operator>>=(big::Integer& n, big::Integer bits) {
+
+		while (Utils::CountSignificantWords(bits.m_Data) != 1) {
+
+			Utils::ShiftRight(n.m_Data, BI_MAX_WORD);
+			bits -= BI_MAX_WORD;
+		}
+
+		Utils::ShiftRight(n.m_Data, bits.m_Data.Buffer[0]);
+
+		return n;
+	}
+
+	// Unary operators
+
+	BI_API big::Integer& operator+(big::Integer& n) {
+
+		return n;
+	}
+
+	BI_API big::Integer& operator++(big::Integer& n) {
+
+		Utils::Increment(n.m_Data);
+
+		return n;
+	}
+
+	BI_API big::Integer operator++(big::Integer& n, int) {
+
+		big::Integer cpy(n);
+		Utils::Increment(n.m_Data);
+
+		return cpy;
+	}
+
+	BI_API big::Integer& operator-(big::Integer& n) {
+
+		Utils::Negate(n.m_Data);
+
+		return n;
+	}
+
+	BI_API big::Integer& operator--(big::Integer& n) {
+
+		Utils::Decrement(n.m_Data);
+
+		return n;
+	}
+
+	BI_API big::Integer operator--(big::Integer& n, int) {
+
+		big::Integer cpy(n);
+		Utils::Decrement(n.m_Data);
+
+		return cpy;
 	}
 }
 
