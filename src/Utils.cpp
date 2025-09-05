@@ -23,6 +23,14 @@ namespace Utils {
 
 	// --- Basic functions ---
 
+	bool IsZero(const BigInt_T& data) {
+
+		if (CountSignificantWords(data) == 1)
+			return data.Buffer[0] == 0;
+
+		return false;
+	}
+
 	void Resize(BigInt_T& data, std::size_t new_size) {
 
 		const std::size_t old_size = data.Size;
@@ -46,7 +54,17 @@ namespace Utils {
 		else {
 
 			WORD* tmp = data.Buffer; // Previous allocated data
-			data.Buffer = new WORD[new_size]; // Allocate on the heap
+
+			try {
+
+				data.Buffer = new WORD[new_size]; // Allocate on the heap
+			}
+
+			catch (const std::bad_alloc& e) {
+
+				throw std::runtime_error("Memory allocation failed: cannot allocate " + std::to_string(new_size * 8) + " bytes");
+			}
+
 			memset(data.Buffer, 0, new_size * sizeof(WORD));
 
 			// Copy the old data
@@ -994,7 +1012,7 @@ namespace Utils {
 
 		const std::size_t bits = CountSignificantBits(data);
 		if (bit_shift_amount > (data.Size * sizeof(WORD) * 8 - bits))
-			Resize(data, (std::size_t)std::ceil((long double)(bit_shift_amount + bits) / (sizeof(WORD) * 8)));
+			Resize(data, (std::size_t)std::ceil((long double)(bit_shift_amount) / (sizeof(WORD) * 8)) + (std::size_t)std::ceil((long double)(bits) / (sizeof(WORD) * 8)));
 
 		WORD*& buffer = data.Buffer;
 		std::size_t offset = bit_shift_amount / (sizeof(WORD) * 8);

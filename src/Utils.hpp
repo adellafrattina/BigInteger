@@ -45,6 +45,13 @@ namespace Utils {
 	}
 
 	/// <summary>
+	/// Checks if the big integer is equal to zero
+	/// </summary>
+	/// <param name="data">The desired big integer</param>
+	/// <returns>True if the big integer is equal to zero, false if not</returns>
+	bool IsZero(const BigInt_T& data);
+
+	/// <summary>
 	/// Resizes the given big integer. Can be used to create or resize a big integer's buffer while keeping its original content (as long as the new size is greater or equal to the old one).
 	/// </summary>
 	/// <param name="data">The big integer to create/resize</param>
