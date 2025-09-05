@@ -956,56 +956,23 @@ namespace Utils {
 
 	void And(BigInt_T& first, const BigInt_T& second) {
 
-		if (first.Size > second.Size) {
-
-			for (std::size_t i = 0; i < second.Size; i++)
-				first.Buffer[i] &= second.Buffer[i];
-
-			for (std::size_t i = second.Size; i < first.Size; i++)
-				first.Buffer[i] = 0;
-		}
-
-		else {
-
-			for (std::size_t i = 0; i < first.Size; i++)
-				first.Buffer[i] &= second.Buffer[i];
-		}
+		Resize(first, std::max(first.Size, second.Size));
+		for (std::size_t i = 0; i < second.Size; i++)
+			first.Buffer[i] &= second.Buffer[i];
 	}
 
 	void Or(BigInt_T& first, const BigInt_T& second) {
 
-		if (first.Size > second.Size) {
-
-			for (std::size_t i = 0; i < second.Size; i++)
-				first.Buffer[i] |= second.Buffer[i];
-
-			for (std::size_t i = second.Size; i < first.Size; i++)
-				first.Buffer[i] = 0;
-		}
-
-		else {
-
-			for (std::size_t i = 0; i < first.Size; i++)
-				first.Buffer[i] |= second.Buffer[i];
-		}
+		Resize(first, std::max(first.Size, second.Size));
+		for (std::size_t i = 0; i < second.Size; i++)
+			first.Buffer[i] |= second.Buffer[i];
 	}
 
 	void Xor(BigInt_T& first, const BigInt_T& second) {
 
-		if (first.Size > second.Size) {
-
-			for (std::size_t i = 0; i < second.Size; i++)
-				first.Buffer[i] ^= second.Buffer[i];
-
-			for (std::size_t i = second.Size; i < first.Size; i++)
-				first.Buffer[i] = 0;
-		}
-
-		else {
-
-			for (std::size_t i = 0; i < first.Size; i++)
-				first.Buffer[i] ^= second.Buffer[i];
-		}
+		Resize(first, std::max(first.Size, second.Size));
+		for (std::size_t i = 0; i < second.Size; i++)
+			first.Buffer[i] ^= second.Buffer[i];
 	}
 
 	void ShiftLeft(BigInt_T& data, std::size_t bit_shift_amount) {

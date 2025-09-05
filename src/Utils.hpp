@@ -209,7 +209,7 @@ namespace Utils {
 
 	/// <summary>
 	/// Executes the bitwise "and" between the two big integers. The resulting big integer will be stored in the first parameter and
-	/// its size will be based on the first big integer's size
+	/// its size will be based on the largest big integer
 	/// </summary>
 	/// <param name="first">The first big integer (and where the result will be stored)</param>
 	/// <param name="second">The second big integer</param>
@@ -217,7 +217,7 @@ namespace Utils {
 
 	/// <summary>
 	/// Executes the bitwise "or" between the two big integers. The resulting big integer will be stored in the first parameter and
-	/// its size will be based on the first big integer's size
+	/// its size will be based on the largest big integer
 	/// </summary>
 	/// <param name="first">The first big integer (and where the result will be stored)</param>
 	/// <param name="second">The second big integer</param>
@@ -225,7 +225,7 @@ namespace Utils {
 
 	/// <summary>
 	/// Executes the bitwise "xor" between the two big integers. The resulting big integer will be stored in the first parameter and
-	/// its size will be based on the first big integer's size
+	/// its size will be based on the largest big integer
 	/// </summary>
 	/// <param name="first">The first big integer (and where the result will be stored)</param>
 	/// <param name="second">The second big integer</param>
