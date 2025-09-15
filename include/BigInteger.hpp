@@ -124,6 +124,7 @@ namespace big {
 
 	public:
 
+		static void Seed(unsigned int seed);
 		static void Rand(big::Integer& n);
 
 		template <
