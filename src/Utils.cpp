@@ -1,6 +1,5 @@
 #include <cmath>
 #include <functional>
-
 #include "Utils.hpp"
 
 namespace Utils {
@@ -60,7 +59,7 @@ namespace Utils {
 				data.Buffer = new WORD[new_size]; // Allocate on the heap
 			}
 
-			catch (const std::bad_alloc& e) {
+			catch (const std::bad_alloc e) {
 
 				throw std::runtime_error("Memory allocation failed: cannot allocate " + std::to_string(new_size * 8) + " bytes");
 			}
@@ -468,6 +467,68 @@ namespace Utils {
 		}
 	}
 
+	/// <summary>
+	/// Multiply two word sized numbers and store the result in a dobule word sized number. Sign is not taken into consideration
+	/// </summary>
+	/// <param name="a">The first word</param>
+	/// <param name="b">The second word</param>
+	/// <param name="low">The low part of the double word</param>
+	/// <param name="high">The high part of the double word</param>
+	static void MultUWORD(WORD a, WORD b, WORD& low, WORD& high) {
+
+		/*
+
+			Applied formula:
+
+			exp = (64 or 32)
+
+			(a_high × 2^(exp/2) + a_low) × (b_high × 2^(exp/2) + b_low)
+			= a_high×b_high×2^exp + (a_high×b_low + a_low×b_high)×2^(exp/2) + a_low×b_low
+
+		*/
+
+		constexpr HALFWORD HALF_WORD_BITS = sizeof(WORD) * 4;
+
+		// Split
+		WORD aLow = a & BI_MAX_HALFWORD; //0xFFFFFFFFULL
+		WORD aHigh = a >> HALF_WORD_BITS;
+		WORD bLow = b & BI_MAX_HALFWORD;
+		WORD bHigh = b >> HALF_WORD_BITS;
+
+		WORD ll = aLow * bLow;
+		WORD lh = aLow * bHigh;
+		WORD hl = aHigh * bLow;
+		WORD hh = aHigh * bHigh;
+
+		WORD middle1 = (ll >> HALF_WORD_BITS) + (lh & BI_MAX_HALFWORD) + (hl & BI_MAX_HALFWORD);
+		WORD middle2 = (lh >> HALF_WORD_BITS) + (hl >> HALF_WORD_BITS) + (middle1 >> HALF_WORD_BITS);
+
+		low = (ll & BI_MAX_HALFWORD) | (middle1 << HALF_WORD_BITS);
+		high = hh + middle2;
+	}
+
+	/// <summary>
+	/// Multiply a big integer by one word
+	/// </summary>
+	/// <param name="a">The big integer (also the final result of the operation)</param>
+	/// <param name="c">The word</param>
+	static void MultiplyByWord(BigInt_T& a, WORD c) {
+
+		WORD carry = 0;
+		for (std::size_t i = 0; i < a.Size; i++) {
+
+			WORD low, high;
+			MultUWORD(a.Buffer[i], c, low, high);
+
+			WORD temp = low + carry;
+			if (temp < low)
+				++high;
+
+			a.Buffer[i] = temp;
+			carry = high;
+		}
+	}
+
 	void Mult(BigInt_T& first, const BigInt_T& second) {
 
 		std::size_t firstSize = CountSignificantWords(first);
@@ -486,60 +547,6 @@ namespace Utils {
 				return;
 			}
 		}
-
-		// Multiply two word sized numbers and store the result in a dobule word sized number
-		static std::function<void(WORD, WORD, WORD&, WORD&)> MultU128
-		=
-		[](WORD a, WORD b, WORD& low, WORD& high) {
-
-			/*
-
-				Applied formula:
-
-				(a_high × 2^32 + a_low) × (b_high × 2^32 + b_low)
-				= a_high×b_high×2^64 + (a_high×b_low + a_low×b_high)×2^32 + a_low×b_low
-
-			*/
-
-			constexpr HALFWORD HALF_WORD_BITS = sizeof(WORD) * 4;
-
-			// Split
-			WORD aLow = a & BI_MAX_HALFWORD; //0xFFFFFFFFULL
-			WORD aHigh = a >> HALF_WORD_BITS;
-			WORD bLow = b & BI_MAX_HALFWORD;
-			WORD bHigh = b >> HALF_WORD_BITS;
-
-			WORD ll = aLow * bLow;
-			WORD lh = aLow * bHigh;
-			WORD hl = aHigh * bLow;
-			WORD hh = aHigh * bHigh;
-
-			WORD middle1 = (ll >> HALF_WORD_BITS) + (lh & BI_MAX_HALFWORD) + (hl & BI_MAX_HALFWORD);
-			WORD middle2 = (lh >> HALF_WORD_BITS) + (hl >> HALF_WORD_BITS) + (middle1 >> HALF_WORD_BITS);
-
-			low = (ll & BI_MAX_HALFWORD) | (middle1 << HALF_WORD_BITS);
-			high = hh + middle2;
-		};
-
-		// Multiply by word
-		static std::function<void(BigInt_T&, WORD)> MultiplyByWord
-		=
-		[](BigInt_T& a, WORD c) {
-
-			WORD carry = 0;
-			for (std::size_t i = 0; i < a.Size; i++) {
-
-				WORD low, high;
-				MultU128(a.Buffer[i], c, low, high);
-
-				WORD temp = low + carry;
-				if (temp < low)
-					++high;
-
-				a.Buffer[i] = temp;
-				carry = high;
-			}
-		};
 
 		// Basecase multiplication
 		static std::function<void(BigInt_T&, const BigInt_T&)> Basecase
@@ -562,7 +569,7 @@ namespace Utils {
 
 				else {
 
-					MultU128(a.Buffer[0], b.Buffer[0], a.Buffer[0], a.Buffer[1]);
+					MultUWORD(a.Buffer[0], b.Buffer[0], a.Buffer[0], a.Buffer[1]);
 				}
 
 				return;
@@ -708,7 +715,7 @@ namespace Utils {
 			const std::size_t aSize = CountSignificantWords(a);
 			const std::size_t bSize = CountSignificantWords(b);
 
-			if (aSize < 30000 || bSize < 30000) {
+			if (aSize < 15000 || bSize < 15000) {
 
 				// If the first factor is equal to zero, do not bother executing the algorithm
 				if (aSize == 1)
@@ -941,9 +948,264 @@ namespace Utils {
 		first.Sign = first.Sign ^ second.Sign;
 	}
 
-	void Div(BigInt_T& a, const BigInt_T& b) {
+	void Div(BigInt_T& first, const BigInt_T& second, BigInt_T* remainder) {
 
-		// Normalize
+		// Divide a double word by a word
+		static auto DivideDoubleWordByWord
+		=
+		[](WORD dividend_high, WORD dividend_low, WORD divisor, WORD* remainder) {
+
+			constexpr WORD WORD_BIT_SIZE_MINUS_ONE = sizeof(WORD) * 8 - 1;
+
+			static auto CompareDoubleWord
+			=
+			[](WORD a_high, WORD a_low, WORD b_high, WORD b_low) {
+
+				if (a_high < b_high) return -1;
+				if (a_high > b_high) return 1;
+				if (a_low < b_low) return -1;
+				if (a_low > b_low) return 1;
+
+				return 0;
+			};
+
+			static auto SubDoubleWord
+			=
+			[](WORD a_high, WORD a_low, WORD b_high, WORD b_low, WORD& result_high, WORD& result_low) {
+
+				result_low = a_low - b_low;
+				result_high = a_high - b_high;
+
+				if (a_low < b_low)
+					--result_high;
+
+				return (a_high < b_high) || (a_high == b_high && a_low < b_low);
+			};
+
+			static auto ShiftLeft1DoubleWord
+			=
+			[&WORD_BIT_SIZE_MINUS_ONE](WORD& high, WORD& low) {
+
+				high = (high << 1) | (low >> WORD_BIT_SIZE_MINUS_ONE);
+				low = low << 1;
+			};
+
+			// Actual division
+
+			// Division by Zero
+			if (divisor == 0)
+				throw std::runtime_error("Division by Zero");
+
+			// Debug purposes
+			if (dividend_high >= divisor) {
+
+#ifdef BI_DEBUG
+				throw std::runtime_error("Quotient overflow - result would exceed 64 bits");
+#endif
+			}
+
+			// Simple case
+			if (dividend_high == 0) {
+
+				if (remainder)
+					*remainder = dividend_low % divisor;
+
+				return dividend_low / divisor;
+			}
+
+			WORD quotient = 0;
+			WORD rem_high = 0;
+			WORD rem_low = 0;
+
+			// Process each bit of the dividend from most significant to least significant
+			for (int i = WORD_BIT_SIZE_MINUS_ONE; i >= 0; i--) {
+
+				ShiftLeft1DoubleWord(rem_high, rem_low);
+
+				if (dividend_high & ((WORD)1 << i))
+					rem_low |= 1;
+
+				if (CompareDoubleWord(rem_high, rem_low, 0, divisor) >= 0) {
+
+					WORD temp_high, temp_low;
+					SubDoubleWord(rem_high, rem_low, 0, divisor, temp_high, temp_low);
+					rem_high = temp_high;
+					rem_low = temp_low;
+					quotient |= ((WORD)1 << i);
+				}
+			}
+
+			// Process the low part of the dividend
+			for (int i = WORD_BIT_SIZE_MINUS_ONE; i >= 0; i--) {
+
+				ShiftLeft1DoubleWord(rem_high, rem_low);
+
+				if (dividend_low & ((WORD)1 << i))
+					rem_low |= 1;
+
+				if (CompareDoubleWord(rem_high, rem_low, 0, divisor) >= 0) {
+
+					WORD temp_high, temp_low;
+					SubDoubleWord(rem_high, rem_low, 0, divisor, temp_high, temp_low);
+					rem_high = temp_high;
+					rem_low = temp_low;
+					quotient = (quotient << 1) | 1;
+				}
+
+				else
+					quotient = quotient << 1;
+			}
+
+			if (remainder)
+				*remainder = rem_low;
+
+			return quotient;
+		};
+
+		constexpr WORD BASE = BI_MAX_WORD;
+		constexpr WORD BITS_PER_WORD = sizeof(WORD) * 8;
+
+		if (IsZero(second))
+			throw std::invalid_argument("Division by zero");
+
+		int cmp = CompareU(first, second);
+		if (cmp < 0) {
+
+			if (remainder != nullptr) {
+
+				Resize(*remainder, CountSignificantWords(first));
+				Copy(*remainder, first);
+			}
+
+			memset(first.Buffer, 0, first.Size * sizeof(WORD));
+		}
+
+		else if (cmp == 0) {
+
+			if (remainder != nullptr) {
+
+				Resize(*remainder, 1);
+				remainder->Buffer[0] = 0;
+			}
+
+			memset(first.Buffer, 0, first.Size * sizeof(WORD));
+			first.Buffer[0] = 1;
+		}
+
+		else {
+
+			// Knuth's Algorithm D
+			BigInt_T un = first;
+			BigInt_T vn = second;
+
+			std::size_t m = CountSignificantWords(un);
+			std::size_t n = CountSignificantWords(vn);
+
+			// D1: Normalize
+			WORD shift = 0;
+			WORD vn_1 = vn.Buffer[n - 1];
+			while (vn_1 < ((WORD)1 << (BITS_PER_WORD - 1))) {
+
+				vn_1 <<= 1;
+				shift++;
+			}
+
+			ShiftLeft(un, shift);
+			ShiftLeft(vn, shift);
+
+			// Ensure un has one extra digit
+			if (un.Size == m)
+				Resize(un, un.Size + 1);
+
+			BigInt_T& quotient = first;
+			if (first.Size < m - n + 1)
+				Resize(quotient, m - n + 1);
+			memset(quotient.Buffer, 0, quotient.Size * sizeof(WORD));
+
+			// D2-D7: Main loop
+			for (std::size_t i = 0; i <= m - n; i++) {
+
+				std::size_t j = m - n - i;
+
+				// D3: Calculate q
+				WORD q, r;
+				WORD dividendHigh = un.Buffer[j + n];
+				WORD dividendLow = un.Buffer[j + n - 1];
+				WORD divisorHigh = vn.Buffer[n - 1];
+
+				if (dividendHigh >= divisorHigh) {
+
+					q = BASE;
+					r = dividendLow + divisorHigh;
+				}
+
+				else
+					q = DivideDoubleWordByWord(dividendHigh, dividendLow, divisorHigh, &r);
+
+				// D3: Test and adjust qhat
+				while (q > 0 && n > 1) {
+
+					WORD prodHigh, prodLow;
+					MultUWORD(q, vn.Buffer[n - 2], prodLow, prodHigh);
+
+					if (prodHigh > r || (prodHigh == r && prodLow > un.Buffer[j + n - 2])) {
+
+						q--;
+						r += divisorHigh;
+						if (r >= divisorHigh)
+							continue;
+					}
+
+					break;
+				}
+
+				// D4: Multiply and subtract
+				BigInt_T qhat_v;
+				Resize(qhat_v, vn.Size + 1);
+				Copy(qhat_v, vn);
+				MultiplyByWord(qhat_v, q);
+
+				BigInt_T u_part;
+				Resize(u_part, n + 1);
+				bi_memcpy(u_part.Buffer, u_part.Size * sizeof(WORD), un.Buffer + j, u_part.Size * sizeof(WORD));
+
+				// D5: Test remainder - need to adjust
+				if (Compare(u_part, qhat_v) < 0) {
+
+					q--;
+
+					// Add back
+					BigInt_T temp;
+					Resize(temp, qhat_v.Size);
+					Copy(temp, qhat_v);
+					Sub(temp, vn);
+					for (std::size_t i = 0; i < n + 1; i++)
+						un.Buffer[j + i] = temp.Buffer[i];
+				}
+
+				else {
+
+					BigInt_T temp;
+					Resize(temp, u_part.Size);
+					Copy(temp, u_part);
+					Sub(temp, qhat_v);
+					for (std::size_t i = 0; i < n + 1; i++)
+						un.Buffer[j + i] = temp.Buffer[i];
+				}
+
+				quotient.Buffer[j] = q;
+			}
+
+			if (remainder != nullptr) {
+
+				Resize(*remainder, CountSignificantWords(un));
+				Copy(*remainder, un);
+				ShiftRight(*remainder, shift);
+			}
+		}
+
+		// Establish sign
+		first.Sign = first.Sign ^ second.Sign;
 	}
 
 	// --- Bitwise functions ---

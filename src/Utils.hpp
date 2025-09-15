@@ -197,7 +197,8 @@ namespace Utils {
 	/// </summary>
 	/// <param name="a">The dividend, where the result will be stored</param>
 	/// <param name="b">The divisor</param>
-	void Div(BigInt_T& a, const BigInt_T& b);
+	/// <param name="remainder">The division remainder (nullptr by default)</param>
+	void Div(BigInt_T& a, const BigInt_T& b, BigInt_T* remainder = nullptr);
 
 	// --- Bitwise functions ---
 

@@ -203,9 +203,11 @@ namespace big {
 
 	BI_API const big::Integer operator%(const big::Integer& a, const big::Integer& b) {
 
-		throw std::runtime_error("Not implemented yet");
+		big::Integer num(a);
+		big::Integer rem;
+		Utils::Div(num.m_Data, b.m_Data, &rem.m_Data);
 
-		return a;
+		return rem;
 	}
 
 	// Relational and comparison operators
@@ -357,9 +359,10 @@ namespace big {
 
 	BI_API big::Integer& operator%=(big::Integer& a, const big::Integer& b) {
 
-		throw std::runtime_error("Not implemented yet");
+		big::Integer rem;
+		Utils::Div(a.m_Data, b.m_Data, &rem.m_Data);
 
-		return a;
+		return rem;
 	}
 
 	BI_API big::Integer& operator&=(big::Integer& a, const big::Integer& b) {
