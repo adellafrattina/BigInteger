@@ -239,12 +239,14 @@ namespace big {
 
 	BI_API const bool operator<=(const big::Integer& a, const big::Integer& b) {
 
-		return Utils::Compare(a.m_Data, b.m_Data) < 0 || Utils::Compare(a.m_Data, b.m_Data) == 0;
+		int cmp = Utils::Compare(a.m_Data, b.m_Data);
+		return cmp < 0 || cmp == 0;
 	}
 
 	BI_API const bool operator>=(const big::Integer& a, const big::Integer& b) {
 
-		return Utils::Compare(a.m_Data, b.m_Data) > 0 || Utils::Compare(a.m_Data, b.m_Data) == 0;
+		int cmp = Utils::Compare(a.m_Data, b.m_Data);
+		return cmp > 0 || cmp == 0;
 	}
 
 	// Logical operators
