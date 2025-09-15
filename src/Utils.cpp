@@ -1,5 +1,6 @@
 #include <cmath>
 #include <functional>
+
 #include "Utils.hpp"
 
 namespace Utils {
