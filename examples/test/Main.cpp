@@ -11,6 +11,7 @@ int main() {
 	std::cout << " 4. (/)\n";
 	std::cout << " 5. (%)\n";
 	std::cout << " 6. (compare)\n";
+	std::cout << " 7. (rand)\n";
 
 	std::cout << ">";
 	int in;
@@ -66,6 +67,40 @@ int main() {
 				std::cout << n1 << " <= " << n2 << "\n";
 
 			return 0;
+
+		case 7: {
+
+			big::Integer::Seed((unsigned)time(NULL));
+
+			big::Integer ub;
+			big::Integer lb;
+
+			bool repeat;
+			do {
+
+				repeat = false;
+
+				std::cout << "Insert a upper bound: ";
+				std::cin >> ub;
+				std::cout << "Insert a lower bound: ";
+				std::cin >> lb;
+
+				if (ub < 0 || lb == ub || ub < lb) {
+
+					std::cout << "Invalid inputs!\n";
+					repeat = true;
+				}
+
+			} while (repeat);
+
+			n.Clear();
+			n.Resize(ub.Size());
+			big::Integer::Rand(n);
+			n %= ub;
+			n += lb;
+
+			break;
+		}
 
 		default:
 			std::cout << "Invalid operation\n";
