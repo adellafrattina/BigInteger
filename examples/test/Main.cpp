@@ -8,7 +8,8 @@ int main() {
 	std::cout << " 1. (+)\n";
 	std::cout << " 2. (-)\n";
 	std::cout << " 3. (x)\n";
-	std::cout << " 4. (compare)\n";
+	std::cout << " 4. (/)\n";
+	std::cout << " 5. (compare)\n";
 
 	std::cout << ">";
 	int in;
@@ -17,7 +18,7 @@ int main() {
 
 	big::Integer n1(0);
 	big::Integer n2(0);
-	if (in >= 1 && in <= 4) {
+	if (in >= 1 && in <= 5) {
 
 		std::cout << "Insert first number: ";
 		std::cin >> n1;
@@ -46,7 +47,8 @@ int main() {
 		case 1: n = n1 + n2; break;
 		case 2: n = n1 - n2; break;
 		case 3: n = n1 * n2; break;
-		case 4:
+		case 4: n = n1 / n2; break;
+		case 5:
 
 			if (n1 == n2)
 				std::cout << n1 << " == " << n2 << "\n";
