@@ -359,10 +359,10 @@ namespace big {
 
 	BI_API big::Integer& operator%=(big::Integer& a, const big::Integer& b) {
 
-		big::Integer rem;
-		Utils::Div(a.m_Data, b.m_Data, &rem.m_Data);
+		BigInt_T aCpy = a.m_Data;
+		Utils::Div(aCpy, b.m_Data, &a.m_Data);
 
-		return rem;
+		return a;
 	}
 
 	BI_API big::Integer& operator&=(big::Integer& a, const big::Integer& b) {

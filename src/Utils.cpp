@@ -997,12 +997,10 @@ namespace Utils {
 				throw std::runtime_error("Division by Zero");
 
 			// Debug purposes
-			if (dividend_high >= divisor) {
-
 #ifdef BI_DEBUG
+			if (dividend_high >= divisor) 
 				throw std::runtime_error("Quotient overflow - result would exceed 64 bits");
 #endif
-			}
 
 			// Simple case
 			if (dividend_high == 0) {
@@ -1094,9 +1092,10 @@ namespace Utils {
 
 		else {
 
-			// Knuth's Algorithm D
 			BigInt_T un = first;
+			un.Sign = BI_PLUS_SIGN;
 			BigInt_T vn = second;
+			vn.Sign = BI_PLUS_SIGN;
 
 			std::size_t m = CountSignificantWords(un);
 			std::size_t n = CountSignificantWords(vn);
@@ -1113,7 +1112,6 @@ namespace Utils {
 			ShiftLeft(un, shift);
 			ShiftLeft(vn, shift);
 
-			// Ensure un has one extra digit
 			if (un.Size == m)
 				Resize(un, un.Size + 1);
 
@@ -1201,6 +1199,7 @@ namespace Utils {
 				Resize(*remainder, CountSignificantWords(un));
 				Copy(*remainder, un);
 				ShiftRight(*remainder, shift);
+				remainder->Sign = first.Sign;
 			}
 		}
 
