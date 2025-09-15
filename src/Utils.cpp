@@ -1,148 +1,10 @@
 #include <cmath>
-
+#include <functional>
 #include "Utils.hpp"
 
-#undef BI_SIGN
-#define BI_SIGN(x) x.Buffer[x.Size - 1]
-
-/// <summary>
-/// Resizes the two given big integers to add padding bits to make the size a power of 2. Mainly used in the Karatsuba algorithm implementation
-/// </summary>
-/// <param name="first">The first big integer</param>
-/// <param name="second">The second big integer</param>
-/// <returns>The new size of both numbers</returns>
-inline static std::size_t MakeSameSizeAsPowerOf2(bi_int& first, bi_int& second) {
-
-	const std::size_t maxBitSize = std::max(Utils::CountSignificantBits(first.Buffer, first.Size), Utils::CountSignificantBits(second.Buffer, second.Size));
-	const std::size_t newSize = (std::size_t)std::ceill(pow(2.0l, (long long)log2(maxBitSize) + 1) / 8.0l);
-
-	Utils::Resize(first, newSize);
-	Utils::Resize(second, newSize);
-
-	return newSize;
-}
-
-/// <summary>
-/// Calculates the minimum byte size for an integer
-/// </summary>
-/// <param name="n">The desired integer</param>
-/// <returns>The minimum byte size for the specified integer</returns>
-inline static std::size_t CalcMinByteSize(const std::uint64_t& n) {
-
-	return n == 0 ? 1 : (std::size_t)std::ceill((long double)((std::size_t)log2l((long double)n) + 1) / 8.0l);
-}
-
-/// <summary>
-/// Calculates the minimum byte size for a big integer
-/// </summary>
-/// <param name="n">The desired big integer</param>
-/// <returns>The minimum byte size for the specified big integer</returns>
-inline static std::size_t CalcMinByteSize(const bi_int& n) {
-
-	std::size_t bits = Utils::CountSignificantBits(n.Buffer, n.Size);
-
-	return bits == 0 ? 1 : (std::size_t)std::ceill((long double)bits / 8.0l);
-}
-
-/// <summary>
-/// Executes the Karatsuba algorithm to multiply two big integers of the same size
-/// </summary>
-/// <param name="x">The first factor (must be positive and without the sign byte)</param>
-/// <param name="y">The second factor (must be positive and without the sign byte)</param>
-/// <param name="size">Both factors size</param>
-/// <returns>The product between the first and the second factor</returns>
-inline static bi_int Karatsuba(const bi_type* const x, const bi_type* const y, std::size_t size) {
-
-	if (size <= sizeof(std::uint32_t)) {
-
-		const std::uint64_t product =
-			Utils::BytesToQWORD(x, size) *
-			Utils::BytesToQWORD(y, size);
-		bi_int p;
-		Utils::Resize(p, CalcMinByteSize(product) + 1, false);
-		std::uint8_t* buffer = (std::uint8_t*)p.Buffer;
-		bi_memcpy(buffer, p.Size * sizeof(bi_type), &product, CalcMinByteSize(product));
-
-		return p;
-	}
-
-	// X1, X2
-	bi_int x1, x2;
-	Utils::Resize(x1, size / 2 + 1, false);
-	Utils::Resize(x2, size / 2 + 1, false);
-	Utils::Copy(x1, { (bi_type*)x + size / 2, size / 2 });
-	Utils::Copy(x2, { (bi_type*)x, size / 2 });
-
-	// Y1, Y2
-	bi_int y1, y2;
-	Utils::Resize(y1, size / 2 + 1, false);
-	Utils::Resize(y2, size / 2 + 1, false);
-	Utils::Copy(y1, { (bi_type*)y + size / 2, size / 2 });
-	Utils::Copy(y2, { (bi_type*)y, size / 2 });
-
-	// U
-	bi_int u = Karatsuba(x1.Buffer, y1.Buffer, (x1.Size - 1));
-
-	// V
-	bi_int v = Karatsuba(x2.Buffer, y2.Buffer, (x2.Size - 1));
-
-	// X1 - X2
-	Utils::Negate(x2);
-	Utils::Add(x1, x2);
-
-	// Y1 - Y2
-	Utils::Negate(y2);
-	Utils::Add(y1, y2);
-
-	// Save the original sign
-	const bi_type x1Sign = BI_SIGN(x1);
-	const bi_type y1Sign = BI_SIGN(y1);
-
-	// Make the results positive
-	Utils::Abs(x1);
-	Utils::Abs(y1);
-
-	// W = (X1 - X2) * (Y1 - Y2)
-	bi_int w = Karatsuba(x1.Buffer, y1.Buffer, size / 2);
-
-	// Add the sign
-	if (x1Sign != y1Sign)
-		Utils::Negate(w);
-
-	bi_int z;
-	Utils::Resize(z, u.Size, false);
-	Utils::Copy(z, u);
-
-	// Z = U + V - W
-	Utils::Add(z, v);
-	Utils::Negate(w);
-	Utils::Add(z, w);
-
-	const long double addSizeU = std::ceill(((long double)size * 8.0l - (long double)(u.Size * 8 - Utils::CountSignificantBits(u.Buffer, u.Size))) / 8.0l) + 1;
-	const long double addSizeZ = std::ceill(((long double)size * 4.0l - (long double)(z.Size * 8 - Utils::CountSignificantBits(z.Buffer, z.Size))) / 8.0l) + 1;
-
-	// P = U * 2^n + Z * 2^n/2 + V
-	Utils::Resize(u, std::size_t(std::abs((long double)u.Size + addSizeU)), false);
-	Utils::Resize(z, std::size_t(std::abs((long double)z.Size + addSizeZ)), false);
-	Utils::ShiftLeft(u.Buffer, u.Size * sizeof(bi_type), size * 8);
-	Utils::ShiftLeft(z.Buffer, z.Size * sizeof(bi_type), size * 4);
-
-	Utils::Add(u, z);
-	Utils::Add(u, v);
-
-	// Free memory
-	Utils::Clear(x1);
-	Utils::Clear(x2);
-	Utils::Clear(y1);
-	Utils::Clear(y2);
-	Utils::Clear(v);
-	Utils::Clear(w);
-	Utils::Clear(z);
-
-	return u;
-}
-
 namespace Utils {
+
+	// --- Debug functions ---
 
 	void PrintAsBinary(void* data, std::size_t size_in_bytes) {
 
@@ -158,399 +20,1537 @@ namespace Utils {
 		putchar('\n');
 	}
 
-	void Resize(bi_int& data, std::size_t new_size, bool ext_sign) {
+	// --- Basic functions ---
 
-		const std::size_t& old_size = data.Size;
-		if (data.Buffer == nullptr) {
+	bool IsZero(const BigInt_T& data) {
 
-			PRINT("Resize called (data: nullptr, new_size: %zu)", new_size);
+		if (CountSignificantWords(data) == 1)
+			return data.Buffer[0] == 0;
+
+		return false;
+	}
+
+	void Resize(BigInt_T& data, std::size_t new_size) {
+
+		const std::size_t old_size = data.Size;
+		new_size = new_size <= 1 ? 1 : new_size;
+
+		// There is no point in executing a resize if both sizes are equal
+		if (old_size == new_size)
+			return;
+
+		PRINT("Resize called (data: %p, old_capacity: %zu, new_capacity: %zu)", data.Buffer, old_size, new_size);
+
+		// This means that the big integer buffer was originally allocated on the heap, but now it will be allocated on the stack
+		if (new_size == 1) {
+
+			WORD* tmp = data.Buffer; // Data was allocated on the heap
+			data = BigInt_T(*data.Buffer, data.Sign); //SetSNO(data, BigIntegerToWORD(data)); // Allocate on the stack
+			delete[] tmp; // Free the heap memory
+		}
+
+		// Regardless of how the big integer buffer was allocated, now it will be allocated on the heap
+		else {
+
+			WORD* tmp = data.Buffer; // Previous allocated data
+
+			try {
+
+				data.Buffer = new WORD[new_size]; // Allocate on the heap
+			}
+
+			catch (const std::bad_alloc e) {
+
+				throw std::runtime_error("Memory allocation failed: cannot allocate " + std::to_string(new_size * 8) + " bytes");
+			}
+
+			memset(data.Buffer, 0, new_size * sizeof(WORD));
+
+			// Copy the old data
+			bi_memcpy(data.Buffer, new_size * sizeof(WORD), tmp, std::min(old_size, new_size) * sizeof(WORD));
+			data.Size = new_size;
+
+			// If the big integer buffer was allocated on the heap, delete the old memory
+			if (old_size > 1)
+				delete[] tmp;
+		}
+	}
+
+	void Copy(BigInt_T& dest, const BigInt_T& src, const std::size_t offset_dest, const std::size_t offset_src) {
+
+		bi_memcpy(dest.Buffer + offset_dest, dest.Size * sizeof(WORD), src.Buffer + offset_src, CountSignificantWords(src) * sizeof(WORD));
+		dest.Sign = src.Sign;
+	}
+
+	void Move(BigInt_T& dest, BigInt_T& src) {
+
+		if (IsOnStack(src)) {
+
+			Copy(dest, src);
+			src.SNO = 0;
 		}
 
 		else {
 
-			PRINT("Resize called (data: %p, old_size: %zu, new_size: %zu)", data.Buffer, old_size, new_size);
+			Utils::Clear(dest);
+
+			dest.Buffer = src.Buffer;
+			dest.Sign = src.Sign;
+			dest.Size = src.Size;
+
+			src.SNO = 0;
+			src.Sign = BI_PLUS_SIGN;
+			src.Buffer = &src.SNO;
+			src.Size = 1;
 		}
-
-		bi_type* tmp = data.Buffer;
-		data.Buffer = new bi_type[new_size];
-		memset(data.Buffer, 0, new_size * sizeof(bi_type)); // For some reason, this must not be touched
-
-		if (tmp != nullptr) {
-
-			// Copy the old data
-			bi_memmove(data.Buffer, new_size * sizeof(bi_type), tmp, old_size > new_size ? new_size : old_size * sizeof(bi_type));
-
-			// Fill the rest of the new buffer data with the old data sign
-			if (ext_sign)
-				for (std::size_t i = old_size; i < new_size; i++)
-					data.Buffer[i] = tmp[old_size - 1];
-
-			delete[] tmp;
-		}
-
-		data.Size = new_size;
 	}
 
-	void Copy(bi_int& dest, const bi_int& src, const std::size_t offset_dest) {
+	void Clear(BigInt_T& data) {
 
-		bi_memcpy(dest.Buffer + offset_dest, dest.Size * sizeof(bi_type), src.Buffer, (src.Size) * sizeof(bi_type));
-	}
-
-	void Clear(bi_int& data) {
-
-		if (data.Buffer != nullptr) {
+		if (data.Size != 1) {
 
 			PRINT("Clear called (data: %p, size: %zu)", data.Buffer, data.Size);
+
 			delete[] data.Buffer;
+
+			data.Buffer = &data.SNO;
+			data.Size = 1;
 		}
 
-		data.Buffer = nullptr;
-		data.Size = 0;
+		data.SNO = 0;
 	}
 
-	void ShrinkToFit(bi_int& data) {
+	void ShrinkToFit(BigInt_T& data) {
 
-		const bi_type sign = BI_SIGN(data);
+		if (data.Size == 1)
+			return;
 
-		std::size_t size = 2;
+		std::size_t size = 1;
 		for (std::size_t i = 0; i < data.Size; i++) {
 
-			if (data.Buffer[data.Size - i - 1] != sign) {
+			if (data.Buffer[data.Size - 1 - i] != 0 || data.Size - i == 1) {
 
-				size = data.Size - i + 1;
+				size = data.Size - i;
 				break;
 			}
 		}
 
-		Resize(data, size, false);
+		Resize(data, size);
 	}
 
-	std::uint64_t BytesToQWORD(const void* data, std::size_t size_in_bytes) {
+	std::size_t CountSignificantBits(const BigInt_T& data) {
 
-		const std::uint8_t* buffer = (std::uint8_t*)data;
-		std::uint64_t qword = 0;
+		std::size_t bits = 0;
+		for (std::size_t i = 0; i < data.Size; i++) {
 
-		size_in_bytes = std::min(size_in_bytes, (std::size_t)8);
-		for (std::size_t i = 0; i < size_in_bytes; i++)
-			qword |= static_cast<std::uint64_t>(buffer[i]) << (i * 8);
+			if (data.Buffer[data.Size - 1 - i] != 0) {
 
-		return qword;
-	}
+				const std::size_t index = data.Size - 1 - i;
+				bits = index * sizeof(WORD) * 8;
+				WORD wrd = data.Buffer[index];
+				while (wrd) {
 
-	bool IsNegative(const bi_int& data) {
+					++bits;
+					wrd >>= 1;
+				}
 
-		return data.Buffer != nullptr && data.Buffer[data.Size - 1] == BI_MINUS_SIGN;
-	}
-
-	std::size_t CountSignificantBits(const bi_type* const n, std::size_t size) {
-
-		std::size_t bitSize = 0;
-		const bi_type& sign = n[size - 1];
-
-		for (std::size_t i = 1; i < size; i++) {
-
-			if (n[size - 1 - i] != sign) {
-
-				std::size_t min = n[size - 1 - i];
-				bitSize = (size - 1 - i) * 8;
-				bitSize += (std::size_t)log2(min) + 1;
-				break;
+				return bits;
 			}
 		}
 
-		return bitSize;
+		return 1;
 	}
 
-	// --- Mathematical operations ---
+	std::size_t CountSignificantWords(const BigInt_T& data) {
 
-	int Compare(const bi_int& first, const bi_int& second) {
+		if (data.Size == 1)
+			return 1;
 
-		const bi_type* firstByte = first.Buffer + first.Size - 1;
-		const bi_type* secondByte = second.Buffer + second.Size - 1;
+		for (std::size_t i = 0; i < data.Size; i++)
+			if (data.Buffer[data.Size - 1 - i] != 0)
+				return data.Size - i;
+
+		return 1;
+	}
+
+	// --- Mathematical functions ---
+
+	int Compare(const BigInt_T& a, const BigInt_T& b) {
+
+		// The two numbers are identical
+		constexpr int EQUAL = 0;
+
+		// The first number is less than the second one
+		constexpr int LESS = -1;
+
+		// The first number is greater than the second one
+		constexpr int GREATER = 1;
 
 		// If the first one is positive and the second one is negative, then return 1, else return -1
-		if (firstByte[0] < secondByte[0])
-			return 1;
-		else if (firstByte[0] > secondByte[0])
-			return -1;
+		if (a.Sign < b.Sign)
+			return GREATER;
+		else if (a.Sign > b.Sign)
+			return LESS;
 
-		const std::size_t firstBitSize = CountSignificantBits(first.Buffer, first.Size);
-		const std::size_t secondBitSize = CountSignificantBits(second.Buffer, second.Size);
+		const std::size_t firstBitSize = CountSignificantBits(a);
+		const std::size_t secondBitSize = CountSignificantBits(b);
 
 		// If the number of significant bits in the first number is higher than the second one, then return 1, else return -1
 		if (firstBitSize > secondBitSize)
-			return 1;
+			return GREATER;
 		else if (firstBitSize < secondBitSize)
-			return -1;
+			return LESS;
 
-		std::size_t size = (std::size_t)std::ceill((long double)firstBitSize / 8.0l);
+		std::size_t size = std::min((std::size_t)std::ceil((long double)firstBitSize / (sizeof(WORD) * 8)), (std::size_t)std::ceil((long double)secondBitSize / (sizeof(WORD) * 8))) - 1;
 
-		// Check every byte in the two numbers
+		// Check every word in the two numbers
 		do {
 
-			if (first.Buffer[size] > second.Buffer[size])
-				return 1;
-			else if (first.Buffer[size] < second.Buffer[size])
-				return -1;
+			if (a.Buffer[size] > b.Buffer[size])
+				return GREATER;
+			else if (a.Buffer[size] < b.Buffer[size])
+				return LESS;
 
 		} while (size--);
 
-		return 0;
+		return EQUAL;
 	}
 
-	void Negate(bi_int& data) {
+	int CompareU(const BigInt_T& a, const BigInt_T& b) {
 
-		Not(data.Buffer, data.Size * sizeof(bi_type));
-		Increment(data);
+		// The two numbers are identical
+		constexpr int EQUAL = 0;
+
+		// The first number is less than the second one
+		constexpr int LESS = -1;
+
+		// The first number is greater than the second one
+		constexpr int GREATER = 1;
+
+		const std::size_t firstBitSize = CountSignificantBits(a);
+		const std::size_t secondBitSize = CountSignificantBits(b);
+
+		// If the number of significant bits in the first number is higher than the second one, then return 1, else return -1
+		if (firstBitSize > secondBitSize)
+			return GREATER;
+		else if (firstBitSize < secondBitSize)
+			return LESS;
+
+		std::size_t size = std::min((std::size_t)std::ceil((long double)firstBitSize / (sizeof(WORD) * 8)), (std::size_t)std::ceil((long double)secondBitSize / (sizeof(WORD) * 8))) - 1;
+
+		// Check every word in the two numbers
+		do {
+
+			if (a.Buffer[size] > b.Buffer[size])
+				return GREATER;
+			else if (a.Buffer[size] < b.Buffer[size])
+				return LESS;
+
+		} while (size--);
+
+		return EQUAL;
 	}
 
-	void Abs(bi_int& data) {
+	void Negate(BigInt_T& data) {
 
-		if (IsNegative(data))
-			Negate(data);
+		data.Sign = !data.Sign;
 	}
 
-	void Increment(bi_int& data) {
+	void Abs(BigInt_T& data) {
 
-		const bool sameSign = BI_SIGN(data) == BI_PLUS_SIGN;
+		if (data.Sign == BI_MINUS_SIGN)
+			data.Sign = BI_PLUS_SIGN;
+	}
 
-		std::uint8_t carry = 1;
-		std::size_t i = 0;
-		while (i < data.Size && carry != 0) {
+	void Increment(BigInt_T& data) {
 
-			carry = 0;
-			bi_type value = data.Buffer[i];
-			data.Buffer[i]++;
-			if (data.Buffer[i] <= value) {
+		const std::size_t actualSize = CountSignificantWords(data);
 
-				carry = 1;
-				i++;
+		// The number has the same sign as the number 1
+		if (data.Sign == BI_PLUS_SIGN) {
+
+			WORD carry = 1;
+			for (std::size_t i = 0; i < actualSize && carry == 1; i++) {
+
+				carry = 0;
+				const WORD v = data.Buffer[i];
+				++data.Buffer[i];
+				if (data.Buffer[i] < v)
+					carry = 1;
 			}
-		}
 
-		if (sameSign) {
+			if (carry) {
 
-			if (BI_SIGN(data) != BI_PLUS_SIGN) {
-
-				Resize(data, data.Size + 1, false);
-				BI_SIGN(data) = BI_PLUS_SIGN;
+				if (data.Size <= actualSize)
+					Resize(data, actualSize + 1);
+				data.Buffer[actualSize] = 1;
 			}
-		}
-	}
-
-	void Decrement(bi_int& data) {
-
-		const bool sameSign = BI_SIGN(data) == BI_MINUS_SIGN;
-
-		std::uint8_t carry = 1;
-		std::size_t i = 0;
-		while (i < data.Size && carry != 0) {
-
-			carry = 0;
-			bi_type value = data.Buffer[i];
-			data.Buffer[i]--;
-			if (data.Buffer[i] >= value) {
-
-				carry = 1;
-				i++;
-			}
-		}
-
-		if (sameSign) {
-
-			if (BI_SIGN(data) != BI_MINUS_SIGN) {
-
-				Resize(data, data.Size + 1, false);
-				BI_SIGN(data) = BI_MINUS_SIGN;
-			}
-		}
-	}
-
-	void Add(bi_int& first, const bi_int& second) {
-
-		// Check if the numbers have the same sign
-		const bool sameSign = BI_SIGN(first) == BI_SIGN(second);
-
-		// First addend sign
-		const bi_type sign1 = BI_SIGN(first);
-
-		// Second addend sign
-		const bi_type sign2 = BI_SIGN(second);
-
-		// Check which number is the biggest
-		std::size_t size;
-		if (first.Size > second.Size) {
-
-			size = first.Size;
-		}
-
-		else if (first.Size < second.Size) {
-
-			size = second.Size;
-			Resize(first, size);
 		}
 
 		else {
 
-			size = first.Size;
-		}
+			if (actualSize == 1 && *data.Buffer == 1) {
 
-		// Sum the numbers byte by byte (TODO: group in QWORDs and add multithreading)
+				*data.Buffer = 0;
+				data.Sign = BI_PLUS_SIGN;
+			}
 
-		std::size_t i = 0;
-		std::uint8_t carry = 0;
-		while (i < size) {
+			else {
 
-			bi_type toSum = i >= second.Size ? sign2 : second.Buffer[i];
+				WORD carry = 1;
+				for (std::size_t i = 0; i < actualSize && carry == 1; i++) {
 
-			bi_type value = first.Buffer[i];
-			first.Buffer[i] = first.Buffer[i] + toSum;
-			bool overflow = first.Buffer[i] < value;
-
-			value = first.Buffer[i];
-			first.Buffer[i] += carry;
-			carry = (overflow || first.Buffer[i] < value) ? 1 : 0;
-
-			i++;
-		}
-
-		// This is the part where the 2's complement gets fixed to work with infinite-precision integer arithmetic.
-		// The logic behind this code is the following:
-
-		// If the 2 big integers had the same sign at the beginning...
-		if (sameSign) {
-
-			// ... and the sum result has a different sign from the previous one...
-			if (first.Buffer[size - 1] != sign1) {
-
-				// ... then resize the destination buffer and add the sign at the end
-				Resize(first, size + 1, false);
-				first.Buffer[size] = carry ? BI_MINUS_SIGN : BI_PLUS_SIGN;
-				size++;
+					carry = 0;
+					const WORD v = data.Buffer[i];
+					--data.Buffer[i];
+					if (data.Buffer[i] > v)
+						carry = 1;
+				}
 			}
 		}
 	}
 
-	void Mult(bi_int& first, const bi_int& second) {
+	void Decrement(BigInt_T& data) {
 
-		// First factor sign
-		const bi_type sign1 = BI_SIGN(first);
+		const std::size_t actualSize = CountSignificantWords(data);
 
-		// Second factor sign
-		const bi_type sign2 = BI_SIGN(second);
+		// The number has the same sign as the number -1
+		if (data.Sign == BI_PLUS_SIGN) {
 
-		bi_int x;
-		Utils::Resize(x, first.Size, false);
-		Utils::Copy(x, first);
+			if (actualSize && *data.Buffer == 0) {
 
-		bi_int y;
-		Utils::Resize(y, second.Size, false);
-		Utils::Copy(y, second);
+				*data.Buffer = 1;
+				data.Sign = BI_MINUS_SIGN;
+			}
 
-		Abs(x);
-		Abs(y);
+			else {
 
-		std::size_t size = MakeSameSizeAsPowerOf2(x, y);
+				WORD carry = 1;
+				for (std::size_t i = 0; i < actualSize && carry == 1; i++) {
 
-		Utils::Clear(first);
-		first = Karatsuba(x.Buffer, y.Buffer, size);
+					carry = 0;
+					const WORD v = data.Buffer[i];
+					--data.Buffer[i];
+					if (data.Buffer[i] > v)
+						carry = 1;
+				}
+			}
+		}
 
-		// Add the sign
-		if (sign1 != sign2)
-			Utils::Negate(first);
+		else {
+
+			WORD carry = 1;
+			for (std::size_t i = 0; i < actualSize && carry == 1; i++) {
+
+				carry = 0;
+				const WORD v = data.Buffer[i];
+				++data.Buffer[i];
+				if (data.Buffer[i] < v)
+					carry = 1;
+
+				i++;
+			}
+
+			if (carry) {
+
+				if (data.Size <= actualSize)
+					Resize(data, actualSize + 1);
+				data.Buffer[actualSize] = 1;
+			}
+		}
 	}
 
-	// --- Bitwise operations ---
+	void Add(BigInt_T& a, const BigInt_T& b) {
 
-	void Not(void* data, std::size_t size_in_bytes) {
+		if (a.Sign == b.Sign)
+			AddU(a, b);
 
-		std::uint8_t* buffer = (std::uint8_t*)data;
+		else {
 
-		for (std::size_t i = 0; i < size_in_bytes; i++)
-			buffer[i] = ~buffer[i];
+			int cmp = CompareU(a, b);
+
+			if (cmp > 0) {
+
+				SubU(a, b);
+			}
+
+			else if (cmp < 0) {
+
+				BigInt_T c = b;
+				SubU(c, a);
+				if (c.Size >= a.Size)
+					Move(a, c);
+				else
+					Copy(a, c);
+			}
+
+			else {
+
+				memset(a.Buffer, 0, a.Size * sizeof(WORD));
+			}
+		}
 	}
 
-	void ShiftLeft(void* data, std::size_t size_in_bytes, std::size_t shift_amount) {
+	void AddU(BigInt_T& a, const BigInt_T& b) {
 
-		if (shift_amount >= size_in_bytes * 8) {
+		std::size_t size = std::max(CountSignificantWords(a), CountSignificantWords(b));
+		if (a.Size < size)
+			Resize(a, size);
 
-			memset(data, 0, size_in_bytes);
+		WORD carry = 0;
+		for (std::size_t i = 0; i < size; i++) {
+
+			const WORD sum = a.Buffer[i] + (i < b.Size ? b.Buffer[i] : 0);
+			const bool overflow = sum < a.Buffer[i];
+			a.Buffer[i] = sum + carry;
+			carry = (overflow || a.Buffer[i] < sum) ? 1 : 0;
+		}
+
+		if (carry != 0) {
+
+			if (size < a.Size)
+				a.Buffer[size] = 1;
+
+			else {
+
+				Resize(a, size + 1);
+				a.Buffer[a.Size - 1] = 1;
+			}
+		}
+	}
+
+	void Sub(BigInt_T& a, const BigInt_T& b) {
+
+		if (a.Sign != b.Sign)
+			AddU(a, b);
+
+		else {
+
+			int cmp = CompareU(a, b);
+
+			if (cmp > 0) {
+
+				SubU(a, b);
+			}
+
+			else if (cmp < 0) {
+
+				BigInt_T c = b;
+				SubU(c, a);
+				if (c.Size >= a.Size)
+					Move(a, c);
+				else
+					Copy(a, c);
+				a.Sign = BI_MINUS_SIGN;
+			}
+
+			else {
+
+				memset(a.Buffer, 0, a.Size * sizeof(WORD));
+			}
+		}
+	}
+
+	void SubU(BigInt_T& a, const BigInt_T& b) {
+
+		// @TODO: ASSERT THAT a.Size > b.Size and Compare(a, b) > 1 || Compare(a, b) == 0
+
+		WORD borrow = 0;
+		for (std::size_t i = 0; i < a.Size; i++) {
+
+			const WORD& ai = a.Buffer[i];
+			const WORD& bi = i < b.Size ? b.Buffer[i] : 0;
+
+			WORD temp = ai - bi - borrow;
+			borrow = (ai < bi + borrow) || (bi + borrow < bi);
+			a.Buffer[i] = temp;
+		}
+	}
+
+	/// <summary>
+	/// Multiply two word sized numbers and store the result in a dobule word sized number. Sign is not taken into consideration
+	/// </summary>
+	/// <param name="a">The first word</param>
+	/// <param name="b">The second word</param>
+	/// <param name="low">The low part of the double word</param>
+	/// <param name="high">The high part of the double word</param>
+	static void MultUWORD(WORD a, WORD b, WORD& low, WORD& high) {
+
+		/*
+
+			Applied formula:
+
+			exp = (64 or 32)
+
+			(a_high × 2^(exp/2) + a_low) × (b_high × 2^(exp/2) + b_low)
+			= a_high×b_high×2^exp + (a_high×b_low + a_low×b_high)×2^(exp/2) + a_low×b_low
+
+		*/
+
+		constexpr HALFWORD HALF_WORD_BITS = sizeof(WORD) * 4;
+
+		// Split
+		WORD aLow = a & BI_MAX_HALFWORD; //0xFFFFFFFFULL
+		WORD aHigh = a >> HALF_WORD_BITS;
+		WORD bLow = b & BI_MAX_HALFWORD;
+		WORD bHigh = b >> HALF_WORD_BITS;
+
+		WORD ll = aLow * bLow;
+		WORD lh = aLow * bHigh;
+		WORD hl = aHigh * bLow;
+		WORD hh = aHigh * bHigh;
+
+		WORD middle1 = (ll >> HALF_WORD_BITS) + (lh & BI_MAX_HALFWORD) + (hl & BI_MAX_HALFWORD);
+		WORD middle2 = (lh >> HALF_WORD_BITS) + (hl >> HALF_WORD_BITS) + (middle1 >> HALF_WORD_BITS);
+
+		low = (ll & BI_MAX_HALFWORD) | (middle1 << HALF_WORD_BITS);
+		high = hh + middle2;
+	}
+
+	/// <summary>
+	/// Multiply a big integer by one word
+	/// </summary>
+	/// <param name="a">The big integer (also the final result of the operation)</param>
+	/// <param name="c">The word</param>
+	static void MultiplyByWord(BigInt_T& a, WORD c) {
+
+		WORD carry = 0;
+		for (std::size_t i = 0; i < a.Size; i++) {
+
+			WORD low, high;
+			MultUWORD(a.Buffer[i], c, low, high);
+
+			WORD temp = low + carry;
+			if (temp < low)
+				++high;
+
+			a.Buffer[i] = temp;
+			carry = high;
+		}
+	}
+
+	void Mult(BigInt_T& first, const BigInt_T& second) {
+
+		std::size_t firstSize = CountSignificantWords(first);
+		std::size_t secondSize = CountSignificantWords(second);
+
+		if (firstSize == 1 && secondSize == 1) {
+
+			// If the number is less than BI_MAX_HALFWORD, we can simply multiply the two buffers
+			if (*first.Buffer <= BI_MAX_HALFWORD &&
+				*second.Buffer <= BI_MAX_HALFWORD)
+
+			{
+
+				*first.Buffer *= *second.Buffer;
+
+				return;
+			}
+		}
+
+		// Basecase multiplication
+		static std::function<void(BigInt_T&, const BigInt_T&)> Basecase
+		=
+		[](BigInt_T& a, const BigInt_T& b) {
+
+			const std::size_t aSize = CountSignificantWords(a);
+			const std::size_t bSize = CountSignificantWords(b);
+
+			if (aSize == 1 && bSize == 1) {
+
+				// If the number is less than 4294967295, we can simply multiply the two buffers
+				if (*a.Buffer <= BI_MAX_HALFWORD &&
+					*b.Buffer <= BI_MAX_HALFWORD)
+
+				{
+
+					*a.Buffer *= *b.Buffer;
+				}
+
+				else {
+
+					MultUWORD(a.Buffer[0], b.Buffer[0], a.Buffer[0], a.Buffer[1]);
+				}
+
+				return;
+			}
+
+			BigInt_T c;
+			Resize(c, aSize);
+			Copy(c, a);
+			MultiplyByWord(a, b.Buffer[0]);
+			for (std::size_t j = 1; j < bSize; j++) {
+
+				BigInt_T d;
+				Resize(d, aSize + 1 + j);
+				Copy(d, c);
+				MultiplyByWord(d, b.Buffer[j]);
+				ShiftLeft(d, j * sizeof(WORD) * 8);
+				AddU(a, d);
+			}
+		};
+
+		// Karatsuba algorithm
+		static std::function<void(BigInt_T&, const BigInt_T&)> Karatsuba
+		=
+		[](BigInt_T& a, const BigInt_T& b) {
+
+			std::size_t aSize = CountSignificantWords(a);
+			std::size_t bSize = CountSignificantWords(b);
+
+			if (aSize < 1024 || bSize < 1024) {
+
+				Basecase(a, b);
+
+				return;
+			}
+
+			// Split
+
+			const std::size_t size = std::max(aSize, bSize);
+			const std::size_t sp = size / 2;
+
+			// A0
+			BigInt_T a0;
+			Resize(a0, sp);
+			for (std::size_t i = 0; i < sp; i++)
+				a0.Buffer[i] = i < aSize ? a.Buffer[i] : 0;
+
+			// A1
+			BigInt_T a1;
+			Resize(a1, sp + 2); // Plus 2 for the possible carry in the later sum
+			for (std::size_t i = sp; i < size; i++)
+				a1.Buffer[i - sp] = i < aSize ? a.Buffer[i] : 0;
+
+			// B0
+			BigInt_T b0;
+			Resize(b0, sp);
+			for (std::size_t i = 0; i < sp; i++)
+				b0.Buffer[i] = i < bSize ? b.Buffer[i] : 0;
+
+			// B1
+			BigInt_T b1;
+			Resize(b1, sp + 2); // Plus 2 for the possible carry in the later sum
+			for (std::size_t i = sp; i < size; i++)
+				b1.Buffer[i - sp] = i < bSize ? b.Buffer[i] : 0;
+
+			// K1
+			BigInt_T k1;
+			std::size_t a1Size = CountSignificantWords(a1);
+			Resize(k1, a1Size + CountSignificantWords(b1) + 2 * sp);
+			bi_memcpy(k1.Buffer, k1.Size * sizeof(WORD), a1.Buffer, a1Size * sizeof(WORD));
+			Karatsuba(k1, b1);
+
+			// K2
+			BigInt_T k2;
+			AddU(a1, a0);
+			AddU(b1, b0);
+			a1Size = CountSignificantWords(a1);
+			Resize(k2, a1Size + CountSignificantWords(b1) + sp);
+			bi_memcpy(k2.Buffer, k2.Size * sizeof(WORD), a1.Buffer, a1Size * sizeof(WORD));
+			Karatsuba(k2, b1);
+
+			// K3
+			BigInt_T k3;
+			std::size_t a0Size = CountSignificantWords(a0);
+			Resize(k3, a0Size + CountSignificantWords(b0));
+			bi_memcpy(k3.Buffer, k3.Size * sizeof(WORD), a0.Buffer, a0Size * sizeof(WORD));
+			Karatsuba(k3, b0);
+
+			SubU(k2, k3);
+			SubU(k2, k1);
+
+			ShiftLeft(k1, 16 * sp * sizeof(WORD));
+			ShiftLeft(k2, 8 * sp * sizeof(WORD));
+
+			memset(a.Buffer, 0, a.Size * sizeof(WORD));
+			AddU(a, k1);
+			AddU(a, k2);
+			AddU(a, k3);
+		};
+
+		// Toom-Cook 3-Way algorithm
+		static std::function<void(BigInt_T&, const BigInt_T&)> ToomCook3
+		=
+		[](BigInt_T& a, const BigInt_T& b) {
+
+			// Divide by 3
+			auto DivideBy3
+			=
+			[](BigInt_T& a) {
+
+				constexpr WORD BASE = (WORD)1 << (sizeof(WORD) * 4);
+
+				HALFWORD* buffer = (HALFWORD*)a.Buffer;
+				const std::size_t n = a.Size * 2;
+				constexpr WORD d = 2'863'311'531; // Precomputed inverse module between 3 and 2^32
+				HALFWORD b = 0;
+				for (size_t i = 0; i < n; ++i) {
+
+					WORD ai = buffer[i];
+					WORD x, b1;
+					if (b <= ai) {
+
+						x = ai - b;
+						b1 = 0;
+					}
+
+					else {
+
+						x = ai + BASE - b;
+						b1 = 1;
+					}
+
+					WORD q = (d * x) % BASE;
+					buffer[i] = (HALFWORD)q;
+
+					WORD prod = (WORD)q * 3;
+					WORD b2 = (prod - x) / BASE;
+					b = (HALFWORD)(b1 + (HALFWORD)b2);
+				}
+
+				return b;
+			};
+
+			const std::size_t aSize = CountSignificantWords(a);
+			const std::size_t bSize = CountSignificantWords(b);
+
+			if (aSize < 15000 || bSize < 15000) {
+
+				// If the first factor is equal to zero, do not bother executing the algorithm
+				if (aSize == 1)
+					if (a.Buffer[0] == 0)
+						return;
+
+				// Same thing for the other factor
+				if (bSize == 1) {
+
+					if (b.Buffer[0] == 0) {
+
+						memset(a.Buffer, 0, a.Size * sizeof(WORD));
+
+						return;
+					}
+				}
+
+				Karatsuba(a, b);
+
+				return;
+			}
+
+			// Split
+
+			const std::size_t size = std::max(aSize, bSize);
+			const std::size_t k = (std::size_t)std::ceil((long double)size / 3.0);
+
+			BigInt_T a0, a1, a2, b0, b1, b2;
+			Resize(a0, k);
+			Resize(a1, k + 1);
+			Resize(a2, size - 2 * k + 1);
+			Resize(b0, k);
+			Resize(b1, k + 1);
+			Resize(b2, size - 2 * k + 1);
+
+			// A0
+			for (std::size_t i = 0; i < k; i++)
+				a0.Buffer[i] = i < aSize ? a.Buffer[i] : 0;
+
+			// A1
+			for (std::size_t i = k; i < 2 * k; i++)
+				a1.Buffer[i - k] = i < aSize ? a.Buffer[i] : 0;
+
+			// A2
+			for (std::size_t i = 2 * k; i < size; i++)
+				a2.Buffer[i - 2 * k] = i < aSize ? a.Buffer[i] : 0;
+
+			// B0
+			for (std::size_t i = 0; i < k; i++)
+				b0.Buffer[i] = i < bSize ? b.Buffer[i] : 0;
+
+			// B1
+			for (std::size_t i = k; i < 2 * k; i++)
+				b1.Buffer[i - k] = i < bSize ? b.Buffer[i] : 0;
+
+			// B2
+			for (std::size_t i = 2 * k; i < size; i++)
+				b2.Buffer[i - 2 * k] = i < bSize ? b.Buffer[i] : 0;
+
+			// A02
+			BigInt_T a02;
+			Resize(a02, std::max(CountSignificantWords(a0), CountSignificantWords(a2)) + 1);
+			Copy(a02, a0);
+			AddU(a02, a2);
+
+			// B02
+			BigInt_T b02;
+			Resize(b02, std::max(CountSignificantWords(b0), CountSignificantWords(b2)) + 1);
+			Copy(b02, b0);
+			AddU(b02, b2);
+
+			// A012
+			BigInt_T a012;
+			Resize(a012, std::max(CountSignificantWords(a02), CountSignificantWords(a1)) + 1);
+			Copy(a012, a02);
+			AddU(a012, a1);
+
+			// B012
+			BigInt_T b012;
+			Resize(b012, std::max(CountSignificantWords(b02), CountSignificantWords(b1)) + 1);
+			Copy(b012, b02);
+			AddU(b012, b1);
+
+			// V0
+			BigInt_T v0;
+			Resize(v0, CountSignificantWords(a0) + CountSignificantWords(b0));
+			Copy(v0, a0);
+			ToomCook3(v0, b0);
+
+			// V1
+			BigInt_T v1;
+			Resize(v1, CountSignificantWords(a012) + CountSignificantWords(b012));
+			Copy(v1, a012);
+			ToomCook3(v1, b012);
+
+			// Vm1
+			BigInt_T vm1;
+			Sub(a02, a1);
+			Sub(b02, b1);
+			Resize(vm1, CountSignificantWords(a02) + CountSignificantWords(b02) + 1);
+			Copy(vm1, a02);
+			ToomCook3(vm1, b02);
+			vm1.Sign = a02.Sign ^ b02.Sign;
+
+			// a1 -> 2*a1
+			ShiftLeft(a1, 1);
+
+			// a2 -> 4*a2
+			ShiftLeft(a2, 2);
+
+			// b1 -> 2*b1
+			ShiftLeft(b1, 1);
+
+			// b2 -> 4*b2
+			ShiftLeft(b2, 2);
+
+			// A0_2A1_4A2
+			BigInt_T a0_2a1_4a2;
+			Resize(a0_2a1_4a2, std::max(CountSignificantWords(a0), std::max(CountSignificantWords(a1), CountSignificantWords(a2))) + 1);
+			Copy(a0_2a1_4a2, a0);
+			AddU(a0_2a1_4a2, a1);
+			AddU(a0_2a1_4a2, a2);
+
+			// B0_2B1_4B2
+			BigInt_T b0_2b1_4b2;
+			Resize(b0_2b1_4b2, std::max(CountSignificantWords(b0), std::max(CountSignificantWords(b1), CountSignificantWords(b2))) + 1);
+			Copy(b0_2b1_4b2, b0);
+			AddU(b0_2b1_4b2, b1);
+			AddU(b0_2b1_4b2, b2);
+
+			// 4*a2 -> a2
+			ShiftRight(a2, 2);
+
+			// 4*b2 -> b2
+			ShiftRight(b2, 2);
+
+			// V2
+			BigInt_T v2;
+			Resize(v2, CountSignificantWords(a0_2a1_4a2) + CountSignificantWords(b0_2b1_4b2));
+			Copy(v2, a0_2a1_4a2);
+			ToomCook3(v2, b0_2b1_4b2);
+
+			// Vinf
+			BigInt_T vinf;
+			Resize(vinf, CountSignificantWords(a2) + CountSignificantWords(b2) + 1);
+			Copy(vinf, a2);
+			ToomCook3(vinf, b2);
+
+			// vm1 -> 2*vm1
+			ShiftLeft(vm1, 1);
+
+			// vinf -> 2*vinf
+			ShiftLeft(vinf, 1);
+
+			// 3*V0
+			BigInt_T _3v0;
+			Resize(_3v0, std::max(CountSignificantWords(v0) + 1, std::max(CountSignificantWords(vm1), CountSignificantWords(v2))) + 1);
+			Copy(_3v0, v0);
+			MultiplyByWord(_3v0, 3); // Multiply by 3
+			Add(_3v0, vm1);
+			Add(_3v0, v2);
+			ShiftRight(_3v0, 1); // Division by 2
+			DivideBy3(_3v0); // Division by 3
+
+			// T1
+			BigInt_T t1;
+			Resize(t1, std::max(CountSignificantWords(_3v0), CountSignificantWords(vinf)));
+			Copy(t1, _3v0);
+			Sub(t1, vinf);
+
+			// 2*vm1 -> vm1
+			ShiftRight(vm1, 1);
+
+			// 2*vinf -> vinf
+			ShiftRight(vinf, 1);
+
+			// T2
+			BigInt_T t2;
+			Resize(t2, std::max(CountSignificantWords(v1), CountSignificantWords(vm1)) + 1);
+			Copy(t2, v1);
+			Add(t2, vm1);
+			ShiftRight(t2, 1);
+
+			// C0
+			const BigInt_T& c0 = v0;
+
+			// C1
+			BigInt_T c1;
+			Resize(c1, std::max(CountSignificantWords(v1), CountSignificantWords(t1)) + k);
+			Copy(c1, v1);
+			Sub(c1, t1);
+
+			// C2
+			BigInt_T c2;
+			Resize(c2, std::max(CountSignificantWords(t2), std::max(CountSignificantWords(v0), CountSignificantWords(vinf))) + 2 * k);
+			Copy(c2, t2);
+			Sub(c2, v0);
+			Sub(c2, vinf);
+
+			// C3
+			BigInt_T c3;
+			Resize(c3, std::max(CountSignificantWords(t1), CountSignificantWords(t2)) + 3 * k);
+			Copy(c3, t1);
+			Sub(c3, t2);
+
+			// C4
+			BigInt_T c4;
+			Resize(c4, CountSignificantWords(vinf) + 4 * k);
+			Copy(c4, vinf);
+
+			memset(a.Buffer, 0, a.Size * sizeof(WORD));
+			ShiftLeft(c1, 1 * k * sizeof(WORD) * 8);
+			ShiftLeft(c2, 2 * k * sizeof(WORD) * 8);
+			ShiftLeft(c3, 3 * k * sizeof(WORD) * 8);
+			ShiftLeft(c4, 4 * k * sizeof(WORD) * 8);
+			Copy(a, c0);
+			Add(a, c1);
+			Add(a, c2);
+			Add(a, c3);
+			Add(a, c4);
+		};
+
+		// Reserve space for result
+		Resize(first, std::max(std::max(first.Size, second.Size), firstSize + secondSize));
+
+		// Multiply
+		ToomCook3(first, second);
+
+		// Establish sign
+		first.Sign = first.Sign ^ second.Sign;
+	}
+
+	void Div(BigInt_T& first, const BigInt_T& second, BigInt_T* remainder) {
+
+		// Divide a double word by a word
+		static auto DivideDoubleWordByWord
+		=
+		[](WORD dividend_high, WORD dividend_low, WORD divisor, WORD* remainder) {
+
+			constexpr WORD WORD_BIT_SIZE_MINUS_ONE = sizeof(WORD) * 8 - 1;
+
+			static auto CompareDoubleWord
+			=
+			[](WORD a_high, WORD a_low, WORD b_high, WORD b_low) {
+
+				if (a_high < b_high) return -1;
+				if (a_high > b_high) return 1;
+				if (a_low < b_low) return -1;
+				if (a_low > b_low) return 1;
+
+				return 0;
+			};
+
+			static auto SubDoubleWord
+			=
+			[](WORD a_high, WORD a_low, WORD b_high, WORD b_low, WORD& result_high, WORD& result_low) {
+
+				result_low = a_low - b_low;
+				result_high = a_high - b_high;
+
+				if (a_low < b_low)
+					--result_high;
+
+				return (a_high < b_high) || (a_high == b_high && a_low < b_low);
+			};
+
+			static auto ShiftLeft1DoubleWord
+			=
+			[&WORD_BIT_SIZE_MINUS_ONE](WORD& high, WORD& low) {
+
+				high = (high << 1) | (low >> WORD_BIT_SIZE_MINUS_ONE);
+				low = low << 1;
+			};
+
+			// Actual division
+
+			// Division by Zero
+			if (divisor == 0)
+				throw std::runtime_error("Division by Zero");
+
+			// Debug purposes
+			if (dividend_high >= divisor) {
+
+#ifdef BI_DEBUG
+				throw std::runtime_error("Quotient overflow - result would exceed 64 bits");
+#endif
+			}
+
+			// Simple case
+			if (dividend_high == 0) {
+
+				if (remainder)
+					*remainder = dividend_low % divisor;
+
+				return dividend_low / divisor;
+			}
+
+			WORD quotient = 0;
+			WORD rem_high = 0;
+			WORD rem_low = 0;
+
+			// Process each bit of the dividend from most significant to least significant
+			for (int i = WORD_BIT_SIZE_MINUS_ONE; i >= 0; i--) {
+
+				ShiftLeft1DoubleWord(rem_high, rem_low);
+
+				if (dividend_high & ((WORD)1 << i))
+					rem_low |= 1;
+
+				if (CompareDoubleWord(rem_high, rem_low, 0, divisor) >= 0) {
+
+					WORD temp_high, temp_low;
+					SubDoubleWord(rem_high, rem_low, 0, divisor, temp_high, temp_low);
+					rem_high = temp_high;
+					rem_low = temp_low;
+					quotient |= ((WORD)1 << i);
+				}
+			}
+
+			// Process the low part of the dividend
+			for (int i = WORD_BIT_SIZE_MINUS_ONE; i >= 0; i--) {
+
+				ShiftLeft1DoubleWord(rem_high, rem_low);
+
+				if (dividend_low & ((WORD)1 << i))
+					rem_low |= 1;
+
+				if (CompareDoubleWord(rem_high, rem_low, 0, divisor) >= 0) {
+
+					WORD temp_high, temp_low;
+					SubDoubleWord(rem_high, rem_low, 0, divisor, temp_high, temp_low);
+					rem_high = temp_high;
+					rem_low = temp_low;
+					quotient = (quotient << 1) | 1;
+				}
+
+				else
+					quotient = quotient << 1;
+			}
+
+			if (remainder)
+				*remainder = rem_low;
+
+			return quotient;
+		};
+
+		constexpr WORD BASE = BI_MAX_WORD;
+		constexpr WORD BITS_PER_WORD = sizeof(WORD) * 8;
+
+		if (IsZero(second))
+			throw std::invalid_argument("Division by zero");
+
+		int cmp = CompareU(first, second);
+		if (cmp < 0) {
+
+			if (remainder != nullptr) {
+
+				Resize(*remainder, CountSignificantWords(first));
+				Copy(*remainder, first);
+			}
+
+			memset(first.Buffer, 0, first.Size * sizeof(WORD));
+		}
+
+		else if (cmp == 0) {
+
+			if (remainder != nullptr) {
+
+				Resize(*remainder, 1);
+				remainder->Buffer[0] = 0;
+			}
+
+			memset(first.Buffer, 0, first.Size * sizeof(WORD));
+			first.Buffer[0] = 1;
+		}
+
+		else {
+
+			// Knuth's Algorithm D
+			BigInt_T un = first;
+			BigInt_T vn = second;
+
+			std::size_t m = CountSignificantWords(un);
+			std::size_t n = CountSignificantWords(vn);
+
+			// D1: Normalize
+			WORD shift = 0;
+			WORD vn_1 = vn.Buffer[n - 1];
+			while (vn_1 < ((WORD)1 << (BITS_PER_WORD - 1))) {
+
+				vn_1 <<= 1;
+				shift++;
+			}
+
+			ShiftLeft(un, shift);
+			ShiftLeft(vn, shift);
+
+			// Ensure un has one extra digit
+			if (un.Size == m)
+				Resize(un, un.Size + 1);
+
+			BigInt_T& quotient = first;
+			if (first.Size < m - n + 1)
+				Resize(quotient, m - n + 1);
+			memset(quotient.Buffer, 0, quotient.Size * sizeof(WORD));
+
+			// D2-D7: Main loop
+			for (std::size_t i = 0; i <= m - n; i++) {
+
+				std::size_t j = m - n - i;
+
+				// D3: Calculate q
+				WORD q, r;
+				WORD dividendHigh = un.Buffer[j + n];
+				WORD dividendLow = un.Buffer[j + n - 1];
+				WORD divisorHigh = vn.Buffer[n - 1];
+
+				if (dividendHigh >= divisorHigh) {
+
+					q = BASE;
+					r = dividendLow + divisorHigh;
+				}
+
+				else
+					q = DivideDoubleWordByWord(dividendHigh, dividendLow, divisorHigh, &r);
+
+				// D3: Test and adjust qhat
+				while (q > 0 && n > 1) {
+
+					WORD prodHigh, prodLow;
+					MultUWORD(q, vn.Buffer[n - 2], prodLow, prodHigh);
+
+					if (prodHigh > r || (prodHigh == r && prodLow > un.Buffer[j + n - 2])) {
+
+						q--;
+						r += divisorHigh;
+						if (r >= divisorHigh)
+							continue;
+					}
+
+					break;
+				}
+
+				// D4: Multiply and subtract
+				BigInt_T qhat_v;
+				Resize(qhat_v, vn.Size + 1);
+				Copy(qhat_v, vn);
+				MultiplyByWord(qhat_v, q);
+
+				BigInt_T u_part;
+				Resize(u_part, n + 1);
+				bi_memcpy(u_part.Buffer, u_part.Size * sizeof(WORD), un.Buffer + j, u_part.Size * sizeof(WORD));
+
+				// D5: Test remainder - need to adjust
+				if (Compare(u_part, qhat_v) < 0) {
+
+					q--;
+
+					// Add back
+					BigInt_T temp;
+					Resize(temp, qhat_v.Size);
+					Copy(temp, qhat_v);
+					Sub(temp, vn);
+					for (std::size_t i = 0; i < n + 1; i++)
+						un.Buffer[j + i] = temp.Buffer[i];
+				}
+
+				else {
+
+					BigInt_T temp;
+					Resize(temp, u_part.Size);
+					Copy(temp, u_part);
+					Sub(temp, qhat_v);
+					for (std::size_t i = 0; i < n + 1; i++)
+						un.Buffer[j + i] = temp.Buffer[i];
+				}
+
+				quotient.Buffer[j] = q;
+			}
+
+			if (remainder != nullptr) {
+
+				Resize(*remainder, CountSignificantWords(un));
+				Copy(*remainder, un);
+				ShiftRight(*remainder, shift);
+			}
+		}
+
+		// Establish sign
+		first.Sign = first.Sign ^ second.Sign;
+	}
+
+	// --- Bitwise functions ---
+
+	void Not(BigInt_T& data) {
+
+		for (std::size_t i = 0; i < data.Size; i++)
+			data.Buffer[i] = ~data.Buffer[i];
+	}
+
+	void And(BigInt_T& first, const BigInt_T& second) {
+
+		Resize(first, std::max(first.Size, second.Size));
+		for (std::size_t i = 0; i < second.Size; i++)
+			first.Buffer[i] &= second.Buffer[i];
+	}
+
+	void Or(BigInt_T& first, const BigInt_T& second) {
+
+		Resize(first, std::max(first.Size, second.Size));
+		for (std::size_t i = 0; i < second.Size; i++)
+			first.Buffer[i] |= second.Buffer[i];
+	}
+
+	void Xor(BigInt_T& first, const BigInt_T& second) {
+
+		Resize(first, std::max(first.Size, second.Size));
+		for (std::size_t i = 0; i < second.Size; i++)
+			first.Buffer[i] ^= second.Buffer[i];
+	}
+
+	void ShiftLeft(BigInt_T& data, std::size_t bit_shift_amount) {
+
+		const std::size_t bits = CountSignificantBits(data);
+		if (bit_shift_amount > (data.Size * sizeof(WORD) * 8 - bits))
+			Resize(data, (std::size_t)std::ceil((long double)(bit_shift_amount) / (sizeof(WORD) * 8)) + (std::size_t)std::ceil((long double)(bits) / (sizeof(WORD) * 8)));
+
+		WORD*& buffer = data.Buffer;
+		std::size_t offset = bit_shift_amount / (sizeof(WORD) * 8);
+		std::size_t rest = bit_shift_amount % (sizeof(WORD) * 8);
+
+		if (offset != 0) {
+
+			bi_memmove(buffer + offset, data.Size * sizeof(WORD), buffer, data.Size * sizeof(WORD) - offset * sizeof(WORD));
+			memset(buffer, 0, offset * sizeof(WORD));
+		}
+
+		if (rest == 0)
+			return;
+
+		WORD* word;
+		std::size_t size = data.Size;
+		for (word = size - 1 + buffer; size--; word--) {
+
+			WORD bits = 0;
+			if (size)
+				bits = word[-1] & (BI_MAX_WORD << (sizeof(WORD) * 8 - rest));
+
+			*word <<= rest;
+			*word |= (bits >> (sizeof(WORD) * 8 - rest));
+		}
+	}
+
+	void ShiftRight(BigInt_T& data, std::size_t bit_shift_amount) {
+
+		if (bit_shift_amount >= CountSignificantBits(data)) {
+
+			memset(data.Buffer, 0, data.Size * sizeof(WORD));
 
 			return;
 		}
 
-		std::uint8_t* buffer = (std::uint8_t*)data;
-		std::size_t offset = shift_amount / 8;
-		std::uint8_t rest = (std::uint8_t)(shift_amount % 8);
-		bi_memmove(buffer + offset, size_in_bytes, buffer, size_in_bytes - offset);
-		memset(buffer, 0, offset);
+		WORD*& buffer = data.Buffer;
+		std::size_t offset = bit_shift_amount / (sizeof(WORD) * 8);
+		std::size_t rest = bit_shift_amount % (sizeof(WORD) * 8);
 
-		// Shift the last 'rest' bits to the left
+		if (offset != 0) {
 
-		std::uint8_t* byte;
-		for (byte = size_in_bytes - 1 + (std::uint8_t*)data; size_in_bytes--; byte--) {
-
-			std::uint8_t bits = 0;
-			if (size_in_bytes)
-				bits = byte[-1] & (0xFF << (CHAR_BIT - rest));
-
-			*byte <<= rest;
-			*byte |= (bits >> (CHAR_BIT - rest));
+			bi_memmove(buffer, data.Size * sizeof(WORD), buffer + offset, data.Size * sizeof(WORD) - offset);
+			memset(buffer + data.Size - offset, 0, offset * sizeof(WORD));
 		}
-	}
 
-	void ShiftRight(void* data, std::size_t size_in_bytes, std::size_t shift_amount) {
-
-		if (shift_amount >= size_in_bytes * 8) {
-
-			memset(data, 0, size_in_bytes);
-
+		if (rest == 0)
 			return;
-		}
 
-		std::uint8_t* buffer = (std::uint8_t*)data;
-		std::size_t offset = shift_amount / 8;
-		std::uint8_t rest = (std::uint8_t)(shift_amount % 8);
-		bi_memmove(buffer, size_in_bytes, buffer + offset, size_in_bytes - offset);
-		memset(buffer + size_in_bytes - offset, 0, offset);
+		// Shift the last 'rest' bits to the right
 
-		std::uint8_t* byte;
-		for (byte = (std::uint8_t*)data; size_in_bytes--; byte++) {
+		WORD* word;
+		std::size_t size = data.Size;
+		for (word = data.Buffer; size--; word++) {
 
-			std::uint8_t bits = 0;
-			if (size_in_bytes)
-				bits = byte[1] & (0xFF >> (CHAR_BIT - rest));
+			WORD bits = 0;
+			if (size)
+				bits = word[1] & (BI_MAX_WORD >> (sizeof(WORD) * 8 - rest));
 
-			*byte >>= rest;
-			*byte |= (bits << (CHAR_BIT - rest));
+			*word >>= rest;
+			*word |= (bits << (sizeof(WORD) * 8 - rest));
 		}
 	}
 
-	void ShiftLeft1BE(void* data, std::size_t size_in_bytes) {
+	// --- String functions ---
 
-		std::uint8_t* byte;
-		for (byte = (std::uint8_t*)data; size_in_bytes--; byte++) {
+	std::string ToString(const BigInt_T& data) {
 
-			std::uint8_t bit = 0;
-			if (size_in_bytes)
-				bit = byte[1] & (1 << (CHAR_BIT - 1)) ? 1 : 0;
+		// Shifts left by one bit
+		void(*ShiftLeft1)(std::uint8_t* buffer, std::size_t size_in_bytes)
+		=
+		[](std::uint8_t* buffer, std::size_t size_in_bytes) {
 
-			*byte <<= 1;
-			*byte |= bit;
+			std::uint8_t* byte;
+			for (byte = (std::uint8_t*)buffer; size_in_bytes--; byte++) {
+
+				std::uint8_t bit = 0;
+				if (size_in_bytes)
+					bit = byte[1] & (1 << (CHAR_BIT - 1)) ? 1 : 0;
+
+				*byte <<= 1;
+				*byte |= bit;
+			}
+		};
+
+		// Shifts left by 4 bits
+		void(*ShiftLeft4)(std::uint8_t* buffer, std::size_t size_in_bytes)
+		=
+		[](std::uint8_t* buffer, std::size_t size_in_bytes) {
+
+			std::uint8_t* byte;
+			for (byte = (std::uint8_t*)buffer; size_in_bytes--; byte++) {
+
+				std::uint8_t bit = 0;
+				if (size_in_bytes)
+					bit = (byte[1] & (0xFF << (CHAR_BIT - 4))) >> (CHAR_BIT - 4);
+
+				*byte <<= 4;
+				*byte |= bit;
+			}
+		};
+
+		// Big integer significant bits
+		const std::size_t significantBits = CountSignificantBits(data);
+
+		// Size in bytes = ceil(4*ceil(n/3)/8) + 1
+		// The last one is needed as an auxiliary buffer to store the first 8 bits in the number
+		const std::size_t bcdBufferSize = 2 * (std::size_t)ceil(ceil((long double)significantBits / 3.0) / 2.0) + 1;
+
+		// The binary-coded decimal buffer
+		std::uint8_t* bcdBuffer = (std::uint8_t*)calloc(bcdBufferSize, sizeof(std::uint8_t));
+		if (bcdBuffer == NULL)
+			return "0";
+
+		std::uint8_t* buffer = (std::uint8_t*)data.Buffer; // Big integer buffer as byte array
+		const std::size_t bufferSize = (std::size_t)ceil((long double)significantBits / 8.0); // Big integer buffer size as byte array
+		const std::size_t shiftAmount = bufferSize * 8; // The amount of shifts needed to convert from binary representation to binary-coded decimal representation
+		const std::size_t AUX_BUFFER_INDEX = bcdBufferSize - 1; // The index of the auxiliary buffer in the bcdBuffer (the last buffer's cell)
+		for (std::size_t shift = 0; shift < shiftAmount; shift++) {
+
+			// If the shift counter consumes all the bits in the auxiliar buffer, refill it with new data from the big integer buffer
+			if (shift % 8 == 0)
+				bcdBuffer[AUX_BUFFER_INDEX] = buffer[bufferSize - 1 - shift / 8];
+
+			// Check every 4 bits if there is at least 5. If so, add 3 to the 4 bits
+			for (std::size_t i = AUX_BUFFER_INDEX / 2; i < AUX_BUFFER_INDEX; i++) { // - (shift / 8 + 1)
+
+				if (bcdBuffer[i] == 0)
+					continue;
+
+				// Check the high bits...
+
+				std::uint8_t digit = (bcdBuffer[i] & HIGH_BITS) >> 4;
+				if (digit > 4) {
+
+					digit += 3;
+					bcdBuffer[i] = (digit << 4) | (LOW_BITS & bcdBuffer[i]);
+				}
+
+				// and the low bits
+
+				digit = bcdBuffer[i] & LOW_BITS;
+				if (digit > 4) {
+
+					digit += 3;
+					bcdBuffer[i] = digit | (HIGH_BITS & bcdBuffer[i]);
+				}
+			}
+
+			// Shift left by one position
+			ShiftLeft1(bcdBuffer, bcdBufferSize);
 		}
+
+		// Shift the bits in the correct position to create the string buffer
+		for (std::size_t i = 0; i < AUX_BUFFER_INDEX; i++) {
+
+			ShiftLeft4(bcdBuffer, AUX_BUFFER_INDEX - i);
+			bcdBuffer[bcdBufferSize - 2 - i] >>= 4;
+		}
+
+		// Remove the useless bits at the start
+		std::size_t offset = 0;
+		for (; offset < bcdBufferSize - 1; offset++)
+			if (bcdBuffer[offset] != 0)
+				break;
+
+		// If the number is zero
+		if (offset == AUX_BUFFER_INDEX)
+			return "0";
+
+		// Create the actual digit string
+		std::string digitStr;
+		digitStr.resize(bcdBufferSize - 1 - offset + data.Sign);
+		bi_memcpy(digitStr.data() + data.Sign, bcdBufferSize - 1 - offset + data.Sign, bcdBuffer + offset, bcdBufferSize - 1 - offset);
+		if (data.Sign)
+			digitStr[0] = '-';
+
+		// Convert from binary number to the ASCII character number
+		for (std::size_t i = data.Sign; i < digitStr.size(); i++)
+			digitStr[i] += 48;
+
+		// Free the bcd buffer
+		free(bcdBuffer);
+
+		return digitStr;
 	}
 
-	void ShiftRight1BE(void* data, std::size_t size_in_bytes) {
+	bool FromString(BigInt_T& data, const std::string& str) {
 
-		std::uint8_t* byte;
-		for (byte = size_in_bytes - 1 + (std::uint8_t*)data; size_in_bytes--; byte--) {
+		// Shifts right by one bit
+		void(*ShiftRight1)(std::uint8_t* buffer, std::size_t size_in_bytes)
+		=
+		[](std::uint8_t* buffer, std::size_t size_in_bytes) {
 
-			std::uint8_t bit = 0;
-			if (size_in_bytes)
-				bit = byte[-1] & 1 ? 1 : 0;
+			std::uint8_t* byte;
+			for (byte = size_in_bytes - 1 + (std::uint8_t*)buffer; size_in_bytes--; byte--) {
 
-			*byte >>= 1;
-			*byte |= (bit << (CHAR_BIT - 1));
+				std::uint8_t bit = 0;
+				if (size_in_bytes)
+					bit = byte[-1] & 1 ? 1 : 0;
+
+				*byte >>= 1;
+				*byte |= (bit << (CHAR_BIT - 1));
+			}
+		};
+
+		// If the string is empty, return null
+		if (str.empty())
+			return false;
+
+		// Check if the number is positive or negative
+		data.Sign = str.at(0) == '-';
+		const std::size_t strLength = data.Sign ? str.length() - 1 : str.length();
+		if (strLength == 0)
+			return false;
+
+		// Check the string is made up by numbers only
+		for (std::size_t i = data.Sign; i < str.length(); i++)
+			if (str.at(i) < '0' || str.at(i) > '9')
+				return false;
+
+		// Reverse double dabble algorithm
+
+		// Size in bytes = ceil(string length / 2) + 1
+		// The last one is needed as an auxiliary buffer to store the first 8 bits in the final number
+		const std::size_t bcdBufferSize = (std::size_t)(std::ceil((long double)strLength / 2.0)) + 1;
+
+		// The binary-coded decimal buffer
+		std::uint8_t* bcdBuffer = (std::uint8_t*)calloc(bcdBufferSize, sizeof(std::uint8_t));
+		if (bcdBuffer == NULL)
+			return "0";
+
+		// Fill the bcd buffer with the provided data.
+		// It starts at the end to ensure the last bits are adjacent to the auxiliary buffer,
+		// so the algorithm can right shift them in the correct position
+
+		long double i = 0.0;
+		std::size_t strIndex = 0;
+		std::uint8_t nibble_offset = LOW_BITS;
+		std::uint8_t shiftAmount = 0;
+		while (strIndex < strLength) {
+
+			bcdBuffer[bcdBufferSize - 2 - (std::size_t)i] |= ((std::uint8_t)(str.at(strLength - 1 - strIndex + data.Sign) - '0') << shiftAmount) & nibble_offset;
+			nibble_offset = ~nibble_offset;
+			shiftAmount = shiftAmount == 4 ? 0 : 4;
+			i += 0.5;
+			strIndex++;
 		}
+
+		// Set up data
+
+		const std::size_t dataSize = (std::size_t)std::ceil(std::ceil((long double)strLength * log2(10.0l)) / (sizeof(WORD) * 8.0l));
+		bool capacityAlreadySet = false; // To remove unnecessary padding caused by the instruction up here. But if the capacity was stored by the user, keep the padding at the end of this function
+
+		if (data.Size < dataSize) {
+
+			Clear(data);
+			Resize(data, dataSize);
+		}
+
+		else {
+
+			capacityAlreadySet = true;
+			memset(data.Buffer, 0, data.Size * sizeof(WORD));
+		}
+
+		std::size_t offset = 0;
+		std::uint8_t* buffer = (std::uint8_t*)data.Buffer;
+		for (std::size_t shift = 0; shift <= dataSize * sizeof(WORD) * 8; shift++) { // '<=' because we need to shift the last bit into the auxiliary buffer
+
+			// When we have shifted 8 bits in the auxiliar buffer, transfer it to the buffer
+			if (shift > 0 && shift % 8 == 0) {
+
+				buffer[shift / 8 - 1] = bcdBuffer[bcdBufferSize - 1];
+				offset++;
+			}
+
+			// Shift right by one position
+			ShiftRight1(bcdBuffer, bcdBufferSize);
+
+			// We start from an offset to avoid checking values that have already been processed
+			for (std::size_t i = offset; i < bcdBufferSize - 1; i++) {
+
+				if (bcdBuffer[i] == 0)
+					continue;
+
+				// Check the high bits...
+
+				std::uint8_t digit = (bcdBuffer[i] & HIGH_BITS) >> 4;
+				if (digit > 4) {
+
+					digit -= 3;
+					bcdBuffer[i] = (digit << 4) | (LOW_BITS & bcdBuffer[i]);
+				}
+
+				// and the low bits
+
+				digit = bcdBuffer[i] & LOW_BITS;
+				if (digit > 4) {
+
+					digit -= 3;
+					bcdBuffer[i] = digit | (HIGH_BITS & bcdBuffer[i]);
+				}
+			}
+		}
+
+		if (!capacityAlreadySet)
+			ShrinkToFit(data);
+
+		return true;
 	}
 }

@@ -1,8 +1,8 @@
-project "bi-core"
-	location "../build/bi-core/"
+project "big-core"
+	location "../build/big-core/"
 	staticruntime ("" .. sruntime .. "")
 	language "C++"
-	cppdialect "C++20"
+	cppdialect "C++11"
 	targetdir ("" .. tdir .. "/%{prj.name}")
 	objdir ("" .. odir .. "/%{prj.name}")
 	targetname ("BigInteger")
@@ -85,5 +85,7 @@ filter "configurations:*DLL or *Shared"
 	postbuildcommands {
 
 		("{MKDIR} ../" .. tdir .. "/test"),
-		("{COPYDIR} %{cfg.buildtarget.relpath} ../" .. tdir .. "/test")
+		("{COPYDIR} %{cfg.buildtarget.relpath} ../" .. tdir .. "/test"),
+		("{MKDIR} ../" .. tdir .. "/benchmark"),
+		("{COPYDIR} %{cfg.buildtarget.relpath} ../" .. tdir .. "/benchmark")
 	}

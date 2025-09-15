@@ -1,168 +1,126 @@
 #include <cassert>
 #include <cmath>
+#include <random>
 
 #include "Utils.hpp"
 
 #include "BigInteger.hpp"
 
-using namespace Utils;
+namespace big {
 
-constexpr std::uint8_t HIGH_BITS = 0xF0;
-constexpr std::uint8_t LOW_BITS = 0x0F;
+	void Integer::Rand(big::Integer& n) {
 
-namespace bi {
+		static std::minstd_rand rand((unsigned)time(NULL));
 
-	Integer::Integer(std::int64_t n)
+		for (std::size_t i = 0; i < n.m_Data.Size; i++)
+			n.m_Data.Buffer[i] = WORD(rand());
+	}
+
+	void Integer::InitFromInt(WORD n, bool sign, std::size_t size) {
+
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		if (size > 1) {
+
+			Utils::Resize(m_Data, size);
+			bi_memcpy(m_Data.Buffer, m_Data.Size * sizeof(WORD), &n, sizeof(WORD));
+			m_Data.Sign = sign;
+		}
+
+		else
+			m_Data = BigInt_T(n, sign);
+	}
+
+	Integer::Integer(const std::string& str, std::size_t size)
 		: m_Data()
 
 	{
 
-		Init(n);
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		if (size > 1) {
+
+			Utils::Resize(m_Data, size);
+			Utils::FromString(m_Data, str);
+		}
+
+		else
+			Utils::FromString(m_Data, str);
 	}
 
-	Integer::Integer(const std::string& str)
+	Integer::Integer(const char* str, std::size_t size)
 		: m_Data()
 
 	{
 
-		Init(str);
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		if (size > 1) {
+
+			Utils::Resize(m_Data, size);
+			Utils::FromString(m_Data, str);
+		}
+
+		else
+			Utils::FromString(m_Data, str);
 	}
 
-	Integer::Integer(const Integer& other)
-		: m_Data({ new bi_type[other.m_Data.Size], other.m_Data.Size })
+	Integer::Integer(const Integer& other, std::size_t size)
+		: m_Data()
 
 	{
 
-		Copy(m_Data, other.m_Data);
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		if (size > 1) {
+
+			Utils::Resize(m_Data, size + other.m_Data.Size);
+			Utils::Copy(m_Data, other.m_Data);
+		}
+
+		else {
+
+			if (Utils::IsOnStack(other.m_Data))
+				Utils::Copy(m_Data, other.m_Data);
+
+			else {
+
+				Utils::Resize(m_Data, other.m_Data.Size);
+				Utils::Copy(m_Data, other.m_Data);
+			}
+		}
+	}
+
+	Integer& Integer::operator=(const Integer& other) {
+
+		if (Utils::IsOnStack(other.m_Data))
+			Utils::Copy(m_Data, other.m_Data);
+
+		else {
+
+			Utils::Resize(m_Data, other.m_Data.Size);
+			Utils::Copy(m_Data, other.m_Data);
+		}
+
+		return *this;
 	}
 
 	Integer::Integer(Integer&& other) noexcept
-		: m_Data({ other.m_Data.Buffer, other.m_Data.Size })
+		: m_Data(std::move(other.m_Data))
 
-	{
-
-		other.m_Data.Buffer = nullptr;
-		other.m_Data.Size = 0;
-	}
+	{}
 
 	Integer::Integer()
 		: m_Data()
 
-	{
+	{}
 
+	Integer::~Integer() {}
 
-	}
+	bool Integer::FromString(Integer& data, const std::string& str) {
 
-	Integer::~Integer() {
-
-		Clear(m_Data);
+		return Utils::FromString(data.m_Data, str);
 	}
 
 	std::string Integer::ToString() const {
 
-		const bool isNegative = IsNegative(m_Data);
-
-		// Re-Convert from 2cp
-		if (isNegative) {
-
-			Decrement(m_Data);
-			Not(m_Data.Buffer, m_Data.Size * sizeof(bi_type));
-		}
-
-		// Double dabble algorithm
-
-		// Size in bytes = ceil(4*ceil(n/3)/8) + 1
-		// The last one is needed as an auxiliary buffer to store the first 8 bits in the number
-		const std::size_t bcdBufferSize = ((m_Data.Size * sizeof(bi_type) * 8) / 3 + 1) + 1;
-
-		// The bcd buffer start
-		const std::size_t bcdBufferStart = ((m_Data.Size * sizeof(bi_type) * 8) / 3 + 1) / 2;
-
-		// The binary-coded decimal buffer
-		std::uint8_t* bcdBuffer = (std::uint8_t*)calloc(bcdBufferSize, sizeof(std::uint8_t));
-		if (bcdBuffer == NULL)
-			return "0";
-
-		std::uint8_t* buffer = (std::uint8_t*)m_Data.Buffer;
-		for (std::size_t shift = 0; shift < m_Data.Size * sizeof(bi_type) * 8; shift++) {
-
-			// If the shift counter consumes all the bits in the auxiliar buffer, refill it with new data
-			if (shift % 8 == 0) {
-
-				bcdBuffer[bcdBufferSize - 1] = buffer[m_Data.Size * sizeof(bi_type) - 1 - shift / 8];
-			}
-
-			for (std::size_t i = bcdBufferStart; i < bcdBufferSize - 1; i++) {
-
-				if (bcdBuffer[i] == 0)
-					continue;
-
-				// Check the high bits...
-
-				std::uint8_t digit = (bcdBuffer[i] & HIGH_BITS) >> 4;
-				if (digit > 4) {
-
-					digit += 3;
-					bcdBuffer[i] = (digit << 4) | (LOW_BITS & bcdBuffer[i]);
-				}
-
-				// and the low bits
-
-				digit = bcdBuffer[i] & LOW_BITS;
-				if (digit > 4) {
-
-					digit += 3;
-					bcdBuffer[i] = digit | (HIGH_BITS & bcdBuffer[i]);
-				}
-			}
-
-			// Shift left by one position
-			ShiftLeft1BE(bcdBuffer, bcdBufferSize);
-		}
-
-		// Convert into 2cp
-		if (isNegative) {
-
-			Not(m_Data.Buffer, m_Data.Size * sizeof(bi_type));
-			Increment(m_Data);
-		}
-
-		// Shift the bits in the correct position to create the string buffer
-		for (std::size_t i = 0; i < bcdBufferSize - 1; i++) {
-
-			// Shift by 4
-			ShiftLeft1BE(bcdBuffer, bcdBufferSize - 1 - i);
-			ShiftLeft1BE(bcdBuffer, bcdBufferSize - 1 - i);
-			ShiftLeft1BE(bcdBuffer, bcdBufferSize - 1 - i);
-			ShiftLeft1BE(bcdBuffer, bcdBufferSize - 1 - i);
-
-			bcdBuffer[bcdBufferSize - 2 - i] >>= 4;
-		}
-
-		// Remove the useless bits at the start
-		std::size_t offset = 0;
-		for (; offset < bcdBufferSize - 1; offset++)
-			if (bcdBuffer[offset] != 0)
-				break;
-
-		// If the number is zero
-		if (offset == bcdBufferSize - 1)
-			return "0";
-
-		// Create the actual digit string
-		std::string data;
-		data.resize(bcdBufferSize - 1 - offset + isNegative);
-		bi_memcpy(data.data() + isNegative, bcdBufferSize - 1 - offset + isNegative, bcdBuffer + offset, bcdBufferSize - 1 - offset);
-		if (isNegative)
-			data[0] = '-';
-
-		for (std::size_t i = isNegative; i < data.size(); i++)
-			data[i] = data[i] + 48; // Convert from binary number to the ASCII character number
-
-		// Free the bcd buffer
-		free(bcdBuffer);
-
-		return data;
+		return Utils::ToString(m_Data);
 	}
 
 	const void* Integer::Data() {
@@ -175,459 +133,444 @@ namespace bi {
 		return m_Data.Size;
 	}
 
-	std::size_t Integer::SizeInBytes() const {
+	void Integer::Resize(std::size_t size) {
 
-		return m_Data.Size * sizeof(bi_type);
+		size = (std::size_t)std::ceil((long double)size / (sizeof(WORD) * 8));
+		Utils::Resize(m_Data, size);
 	}
 
-	Integer& Integer::operator=(std::int64_t n) {
+	void Integer::ShrinkToFit() {
 
-		Init(n);
-
-		return *this;
+		Utils::ShrinkToFit(m_Data);
 	}
 
-	Integer& Integer::operator=(const std::string& str) {
+	void Integer::Clear() {
 
-		Init(str);
-
-		return *this;
-	}
-
-	Integer& Integer::operator=(const Integer& other) {
-
-		Utils::Resize(this->m_Data, other.m_Data.Size, false);
-		Utils::Copy(this->m_Data, other.m_Data);
-
-		return *this;
-	}
-
-	// Plus
-
-	Integer& Integer::operator+() {
-
-		return *this;
-	}
-
-	Integer Integer::operator+(std::int64_t n) const {
-
-		Integer addend(n);
-		Integer new_int(*this);
-		Add(new_int.m_Data, addend.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator+=(std::int64_t n) {
-
-		Integer addend(n);
-		Add(m_Data, addend.m_Data);
-
-		return *this;
-	}
-
-	Integer Integer::operator+(const std::string& str) const {
-
-		Integer addend(str);
-		Integer new_int(*this);
-		Add(new_int.m_Data, addend.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator+=(const std::string& str) {
-
-		Integer addend(str);
-		Add(m_Data, addend.m_Data);
-
-		return *this;
-	}
-
-	Integer Integer::operator+(const Integer& other) const {
-
-		Integer new_int(*this);
-		Add(new_int.m_Data, other.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator+=(const Integer& other) {
-
-		Add(m_Data, other.m_Data);
-
-		return *this;
-	}
-
-	Integer Integer::operator++(int) {
-
-		Integer new_int(*this);
-		Increment(m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator++() {
-
-		Increment(m_Data);
-
-		return *this;
-	}
-
-	// Minus
-
-	Integer Integer::operator-() {
-
-		Integer new_int(*this);
-		Negate(new_int.m_Data);
-
-		return new_int;
-	}
-
-	Integer Integer::operator-(std::int64_t n) const {
-
-		Integer subtracting(n);
-		Negate(subtracting.m_Data);
-
-		Integer new_int(*this);
-		Add(new_int.m_Data, subtracting.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator-=(std::int64_t n) {
-
-		Integer subtracting(n);
-		Negate(subtracting.m_Data);
-		Add(m_Data, subtracting.m_Data);
-
-		return *this;
-	}
-
-	Integer Integer::operator-(const std::string& str) const {
-
-		Integer subtracting(str);
-		Negate(subtracting.m_Data);
-
-		Integer new_int(*this);
-		Add(new_int.m_Data, subtracting.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator-=(const std::string& str) {
-
-		Integer subtracting(str);
-		Negate(subtracting.m_Data);
-		Add(m_Data, subtracting.m_Data);
-
-		return *this;
-	}
-
-	Integer Integer::operator-(const Integer& other) const {
-
-		Integer subtracting(other);
-		Negate(subtracting.m_Data);
-
-		Integer new_int(*this);
-		Add(new_int.m_Data, subtracting.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator-=(const Integer& other) {
-
-		Integer subtracting(other);
-		Negate(subtracting.m_Data);
-		Add(m_Data, subtracting.m_Data);
-
-		return *this;
-	}
-
-	Integer Integer::operator--(int) {
-
-		Integer new_int(*this);
-		Decrement(m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator--() {
-
-		Decrement(m_Data);
-
-		return *this;
-	}
-
-	// Star
-
-	Integer Integer::operator*(std::int64_t n) const {
-
-		Integer factor(n);
-		Integer new_int(*this);
-		Mult(new_int.m_Data, factor.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator*=(std::int64_t n) {
-
-		Integer factor(n);
-		Mult(m_Data, factor.m_Data);
-
-		return *this;
-	}
-
-	Integer Integer::operator*(const std::string& str) const {
-
-		Integer factor(str);
-		Integer new_int(*this);
-		Mult(new_int.m_Data, factor.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator*=(const std::string& str) {
-
-		Integer factor(str);
-		Mult(m_Data, factor.m_Data);
-
-		return *this;
-	}
-
-	Integer Integer::operator*(const Integer& other) const {
-
-		Integer new_int(*this);
-		Mult(new_int.m_Data, other.m_Data);
-
-		return new_int;
-	}
-
-	Integer& Integer::operator*=(const Integer& other) {
-
-		Mult(m_Data, other.m_Data);
-
-		return *this;
-	}
-
-	// Backslash
-
-	Integer Integer::operator/(const Integer& other) const {
-
-		assert((void("Not implemented yet"), false));
-
-		return Integer(0);
-	}
-
-	// Boolean
-
-	Integer::operator bool() const {
-
-		std::size_t validBytes = (std::size_t)std::ceill((long double)CountSignificantBits(m_Data.Buffer, m_Data.Size) / 8.0);
-
-		if (m_Data.Buffer != nullptr)
-			for (std::size_t i = 0; i < validBytes; i++)
-				if (m_Data.Buffer[i] != 0)
-					return true;
-
-		return false;
-	}
-
-	bool Integer::operator==(const std::string& str) const {
-
-		Integer new_int(str);
-
-		return Compare(this->m_Data, new_int.m_Data) == 0;
-	}
-
-	bool Integer::operator==(const Integer& other) const {
-
-		return Compare(this->m_Data, other.m_Data) == 0;
-	}
-
-	bool Integer::operator!=(const std::string& str) const {
-
-		Integer new_int(str);
-
-		return Compare(this->m_Data, new_int.m_Data) != 0;
-	}
-
-	bool Integer::operator!=(const Integer& other) const {
-
-		return Compare(this->m_Data, other.m_Data) != 0;
-	}
-
-	bool Integer::operator>(const std::string& str) const {
-
-		Integer new_int(str);
-
-		return Compare(this->m_Data, new_int.m_Data) > 0;
-	}
-
-	bool Integer::operator>(const Integer& other) const {
-
-		return Compare(this->m_Data, other.m_Data) > 0;
-	}
-
-	bool Integer::operator<(const std::string& str) const {
-
-		Integer new_int(str);
-
-		return Compare(this->m_Data, new_int.m_Data) < 0;
-	}
-
-	bool Integer::operator<(const Integer& other) const {
-
-		return Compare(this->m_Data, other.m_Data) < 0;
-	}
-
-	bool Integer::operator>=(const std::string& str) const {
-
-		Integer new_int(str);
-
-		return Compare(this->m_Data, new_int.m_Data) > 0 || Compare(this->m_Data, new_int.m_Data) == 0;
-	}
-
-	bool Integer::operator>=(const Integer& other) const {
-
-		return Compare(this->m_Data, other.m_Data) > 0 || Compare(this->m_Data, other.m_Data) == 0;
-	}
-
-	bool Integer::operator<=(const std::string& str) const {
-
-		Integer new_int(str);
-
-		return Compare(this->m_Data, new_int.m_Data) < 0 || Compare(this->m_Data, new_int.m_Data) == 0;
-	}
-
-	bool Integer::operator<=(const Integer& other) const {
-
-		return Compare(this->m_Data, other.m_Data) < 0 || Compare(this->m_Data, other.m_Data) == 0;
+		Utils::Clear(m_Data);
 	}
 
 	// Stream
 
-	std::istream& operator>>(std::istream& is, bi::Integer& n) {
+	BI_API std::istream& operator>>(std::istream& is, big::Integer& n) {
 
 		std::string str;
 		is >> str;
-		if (!n.Init(str))
+
+		if (!Integer::FromString(n, str))
 			is.setstate(std::ios_base::failbit);
 
 		return is;
 	}
 
-	std::ostream& operator<<(std::ostream& os, const bi::Integer& n) {
+	BI_API std::ostream& operator<<(std::ostream& os, const big::Integer& n) {
 
 		return os << n.ToString();
 	}
 
-	void Integer::Init(std::int64_t n) {
+	// Arithmetic operators
 
-		Clear(m_Data);
+	BI_API const big::Integer operator+(const big::Integer& a, const big::Integer& b) {
 
-		m_Data.Size = sizeof(std::int64_t) / sizeof(bi_type) + 1;
-		m_Data.Buffer = new bi_type[m_Data.Size];
-		m_Data.Buffer[m_Data.Size - 1] = n < 0 ? BI_MINUS_SIGN : BI_PLUS_SIGN;
+		big::Integer num(a);
+		Utils::Add(num.m_Data, b.m_Data);
 
-		std::uint8_t* buffer = (std::uint8_t*)m_Data.Buffer;
-		bi_memcpy(buffer, m_Data.Size * sizeof(bi_type), &n, sizeof(n));
+		return num;
 	}
 
-	bool Integer::Init(const std::string& str) {
+	BI_API const big::Integer operator-(const big::Integer& a, const big::Integer& b) {
 
-		if (str.empty())
-			return false;
+		big::Integer num(a);
+		Utils::Sub(num.m_Data, b.m_Data);
 
-		// Check if the number is positive or negative
-		const bool isNegative = str.at(0) == '-';
-		const std::size_t strLength = isNegative ? str.length() - 1 : str.length();
-		if (strLength == 0)
-			return false;
-
-		// Check the string is made up by numbers only
-		for (std::size_t i = isNegative; i < str.length(); i++)
-			if (str.at(i) < '0' || str.at(i) > '9')
-				return false;
-
-		// Reverse double dabble algorithm
-
-		// Size in bytes = ceil(string length / 2) + 1
-		// The last one is needed as an auxiliary buffer to store the first 8 bits in the final number
-		const std::size_t bcdBufferSize = (std::size_t)(std::ceil((long double)strLength / 2.0l)) + 1;
-
-		// The binary-coded decimal buffer
-		std::uint8_t* bcdBuffer = (std::uint8_t*)calloc(bcdBufferSize, sizeof(std::uint8_t));
-		if (bcdBuffer == NULL)
-			return "0";
-
-		// Fill the bcd buffer with the provided data.
-		// It starts at the end to ensure the last bits are adjacent to the auxiliary buffer,
-		// so the algorithm can right shift them in the correct position
-
-		long double i = 0.0;
-		std::size_t strIndex = 0;
-		std::uint8_t nibble_offset = LOW_BITS;
-		std::uint8_t shiftAmount = 0;
-		while (strIndex < strLength) {
-
-			bcdBuffer[bcdBufferSize - 2 - (std::size_t)i] |= ((std::uint8_t)(str.at(strLength - 1 - strIndex + isNegative) - '0') << shiftAmount) & nibble_offset;
-			nibble_offset = ~nibble_offset;
-			shiftAmount = shiftAmount == 4 ? 0 : 4;
-			i += 0.5;
-			strIndex++;
-		}
-
-		// Set up data
-		Clear(m_Data);
-		Resize(m_Data, (std::size_t)std::ceil(std::ceil((long double)strLength * log2(10.0l)) / (sizeof(bi_type) * 8.0l)) + 1); // Plus one for the sign
-
-		std::size_t offset = 0;
-		std::uint8_t* buffer = (std::uint8_t*)m_Data.Buffer;
-		for (std::size_t shift = 0; shift < m_Data.Size * sizeof(bi_type) * 8; shift++) { // Plus one (already inside 'm_Size') because we need to shift the last bit into the auxiliary buffer
-
-			// When we have shifted 8 bits in the auxiliar buffer, transfer it to the buffer
-			if (shift > 0 && shift % 8 == 0) {
-
-				buffer[shift / 8 - 1] = bcdBuffer[bcdBufferSize - 1];
-				offset++;
-			}
-
-			// Shift right by one position
-			ShiftRight1BE(bcdBuffer, bcdBufferSize);
-
-			// We start from an offset to avoid checking values that have already been processed
-			for (std::size_t i = offset; i < bcdBufferSize - 1; i++) {
-
-				if (bcdBuffer[i] == 0)
-					continue;
-
-				// Check the high bits...
-
-				std::uint8_t digit = (bcdBuffer[i] & HIGH_BITS) >> 4;
-				if (digit > 4) {
-
-					digit -= 3;
-					bcdBuffer[i] = (digit << 4) | (LOW_BITS & bcdBuffer[i]);
-				}
-
-				// and the low bits
-
-				digit = bcdBuffer[i] & LOW_BITS;
-				if (digit > 4) {
-
-					digit -= 3;
-					bcdBuffer[i] = digit | (HIGH_BITS & bcdBuffer[i]);
-				}
-			}
-		}
-
-		// Convert into 2cp
-		if (isNegative) {
-
-			Not(m_Data.Buffer, m_Data.Size * sizeof(bi_type));
-			Increment(m_Data);
-		}
-
-		return true;
+		return num;
 	}
+
+	BI_API const big::Integer operator*(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer num(a);
+		Utils::Mult(num.m_Data, b.m_Data);
+
+		return num;
+	}
+
+	BI_API const big::Integer operator/(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer num(a);
+		Utils::Div(num.m_Data, b.m_Data);
+
+		return num;
+	}
+
+	BI_API const big::Integer operator%(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer num(a);
+		big::Integer rem;
+		Utils::Div(num.m_Data, b.m_Data, &rem.m_Data);
+
+		return rem;
+	}
+
+	// Relational and comparison operators
+
+	BI_API const bool operator==(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) == 0;
+	}
+
+	BI_API const bool operator!=(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) != 0;
+	}
+
+	BI_API const bool operator<(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) < 0;
+	}
+
+	BI_API const bool operator>(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) > 0;
+	}
+
+	BI_API const bool operator<=(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) < 0 || Utils::Compare(a.m_Data, b.m_Data) == 0;
+	}
+
+	BI_API const bool operator>=(const big::Integer& a, const big::Integer& b) {
+
+		return Utils::Compare(a.m_Data, b.m_Data) > 0 || Utils::Compare(a.m_Data, b.m_Data) == 0;
+	}
+
+	// Logical operators
+
+	big::Integer::operator bool() const {
+
+		return !Utils::IsZero(this->m_Data);
+	}
+
+	// Bitwise operators
+
+	BI_API const big::Integer operator&(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer cpy(a);
+		Utils::And(cpy.m_Data, b.m_Data);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator|(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer cpy(a);
+		Utils::Or(cpy.m_Data, b.m_Data);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator^(const big::Integer& a, const big::Integer& b) {
+
+		big::Integer cpy(a);
+		Utils::Xor(cpy.m_Data, b.m_Data);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator~(const big::Integer& n) {
+
+		big::Integer cpy(n);
+		Utils::Not(cpy.m_Data);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator<<(const big::Integer& n, std::size_t bits) {
+
+		big::Integer cpy(n);
+		Utils::ShiftLeft(cpy.m_Data, bits);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator>>(const big::Integer& n, std::size_t bits) {
+
+		big::Integer cpy(n);
+		Utils::ShiftRight(cpy.m_Data, bits);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator<<(const big::Integer& n, big::Integer bits) {
+
+		big::Integer cpy(n);
+		while (Utils::CountSignificantWords(bits.m_Data) != 1) {
+
+			Utils::ShiftLeft(cpy.m_Data, BI_MAX_WORD);
+			bits -= BI_MAX_WORD;
+		}
+
+		Utils::ShiftLeft(cpy.m_Data, bits.m_Data.Buffer[0]);
+
+		return cpy;
+	}
+
+	BI_API const big::Integer operator>>(const big::Integer& n, big::Integer bits) {
+
+		big::Integer cpy(n);
+		while (Utils::CountSignificantWords(bits.m_Data) != 1) {
+
+			Utils::ShiftRight(cpy.m_Data, BI_MAX_WORD);
+			bits -= BI_MAX_WORD;
+		}
+
+		Utils::ShiftRight(cpy.m_Data, bits.m_Data.Buffer[0]);
+
+		return cpy;
+	}
+
+	// Assignment operators
+
+	BI_API big::Integer& operator+=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Add(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator-=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Sub(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator*=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Mult(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator/=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Div(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator%=(big::Integer& a, const big::Integer& b) {
+
+		big::Integer rem;
+		Utils::Div(a.m_Data, b.m_Data, &rem.m_Data);
+
+		return rem;
+	}
+
+	BI_API big::Integer& operator&=(big::Integer& a, const big::Integer& b) {
+
+		Utils::And(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator|=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Or(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator^=(big::Integer& a, const big::Integer& b) {
+
+		Utils::Xor(a.m_Data, b.m_Data);
+
+		return a;
+	}
+
+	BI_API big::Integer& operator<<=(big::Integer& n, std::size_t bits) {
+
+		Utils::ShiftLeft(n.m_Data, bits);
+
+		return n;
+	}
+
+	BI_API big::Integer& operator>>=(big::Integer& n, std::size_t bits) {
+
+		Utils::ShiftRight(n.m_Data, bits);
+
+		return n;
+	}
+
+	BI_API big::Integer& operator<<=(big::Integer& n, big::Integer bits) {
+
+		while (Utils::CountSignificantWords(bits.m_Data) != 1) {
+
+			Utils::ShiftLeft(n.m_Data, BI_MAX_WORD);
+			bits -= BI_MAX_WORD;
+		}
+
+		Utils::ShiftLeft(n.m_Data, bits.m_Data.Buffer[0]);
+
+		return n;
+	}
+
+	BI_API big::Integer& operator>>=(big::Integer& n, big::Integer bits) {
+
+		while (Utils::CountSignificantWords(bits.m_Data) != 1) {
+
+			Utils::ShiftRight(n.m_Data, BI_MAX_WORD);
+			bits -= BI_MAX_WORD;
+		}
+
+		Utils::ShiftRight(n.m_Data, bits.m_Data.Buffer[0]);
+
+		return n;
+	}
+
+	// Unary operators
+
+	BI_API big::Integer& operator+(big::Integer& n) {
+
+		return n;
+	}
+
+	BI_API big::Integer& operator++(big::Integer& n) {
+
+		Utils::Increment(n.m_Data);
+
+		return n;
+	}
+
+	BI_API big::Integer operator++(big::Integer& n, int) {
+
+		big::Integer cpy(n);
+		Utils::Increment(n.m_Data);
+
+		return cpy;
+	}
+
+	BI_API big::Integer& operator-(big::Integer& n) {
+
+		Utils::Negate(n.m_Data);
+
+		return n;
+	}
+
+	BI_API big::Integer& operator--(big::Integer& n) {
+
+		Utils::Decrement(n.m_Data);
+
+		return n;
+	}
+
+	BI_API big::Integer operator--(big::Integer& n, int) {
+
+		big::Integer cpy(n);
+		Utils::Decrement(n.m_Data);
+
+		return cpy;
+	}
+}
+
+// --- Big integer structure ---
+
+BigInt_T::BigInt_T()
+	: Buffer(nullptr), Size(1), Sign(BI_PLUS_SIGN), SNO(0)
+
+{
+
+	Buffer = &SNO;
+}
+
+BigInt_T::BigInt_T(WORD sno, bool sign)
+	: Buffer(nullptr), Size(1), Sign(sign), SNO(sno)
+
+{
+
+	Buffer = &SNO;
+}
+
+BigInt_T::BigInt_T(WORD* buffer, std::size_t size, bool sign)
+	: Buffer(buffer), Size(size), Sign(sign), SNO(0)
+
+{}
+
+BigInt_T::BigInt_T(const BigInt_T& other)
+	: Buffer(nullptr), Size(0), Sign(BI_PLUS_SIGN), SNO(0)
+
+{
+
+	if (Utils::IsOnStack(other)) {
+
+		SNO = other.SNO;
+		Sign = other.Sign;
+		Size = other.Size;
+		Buffer = &SNO;
+	}
+
+	else {
+
+		Utils::Resize(*this, other.Size);
+		Utils::Copy(*this, other);
+	}
+}
+
+BigInt_T::BigInt_T(BigInt_T&& other) noexcept
+	: Buffer(nullptr), Size(0), Sign(BI_PLUS_SIGN), SNO(0)
+
+{
+
+	if (Utils::IsOnStack(other)) {
+
+		SNO = other.SNO;
+		Sign = other.Sign;
+		Size = other.Size;
+		Buffer = &SNO;
+		other.SNO = 0;
+		other.Sign = BI_PLUS_SIGN;
+	}
+
+	else
+		Utils::Move(*this, other);
+}
+
+BigInt_T& BigInt_T::operator=(const BigInt_T& other) {
+
+	if (Utils::IsOnStack(other)) {
+
+		SNO = other.SNO;
+		Sign = other.Sign;
+		Size = other.Size;
+		Buffer = &SNO;
+	}
+
+	else {
+
+		Utils::Resize(*this, other.Size);
+		Utils::Copy(*this, other);
+	}
+
+	return *this;
+}
+
+BigInt_T& BigInt_T::operator=(BigInt_T&& other) noexcept {
+
+	if (Utils::IsOnStack(other)) {
+
+		SNO = other.SNO;
+		Sign = other.Sign;
+		Size = other.Size;
+		Buffer = &SNO;
+		other.SNO = 0;
+		other.Sign = BI_PLUS_SIGN;
+	}
+
+	else
+		Utils::Move(*this, other);
+
+	return *this;
+}
+
+BigInt_T::~BigInt_T() {
+
+	Utils::Clear(*this);
 }
