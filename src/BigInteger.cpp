@@ -8,9 +8,14 @@
 
 namespace big {
 
-	void Integer::Rand(big::Integer& n) {
+	static std::minstd_rand rand((unsigned)0);
 
-		static std::minstd_rand rand((unsigned)time(NULL));
+	void Integer::Seed(unsigned int seed) {
+
+		rand.seed(seed);
+	}
+
+	void Integer::Rand(big::Integer& n) {
 
 		for (std::size_t i = 0; i < n.m_Data.Size; i++)
 			n.m_Data.Buffer[i] = WORD(rand());
@@ -234,12 +239,14 @@ namespace big {
 
 	BI_API const bool operator<=(const big::Integer& a, const big::Integer& b) {
 
-		return Utils::Compare(a.m_Data, b.m_Data) < 0 || Utils::Compare(a.m_Data, b.m_Data) == 0;
+		int cmp = Utils::Compare(a.m_Data, b.m_Data);
+		return cmp < 0 || cmp == 0;
 	}
 
 	BI_API const bool operator>=(const big::Integer& a, const big::Integer& b) {
 
-		return Utils::Compare(a.m_Data, b.m_Data) > 0 || Utils::Compare(a.m_Data, b.m_Data) == 0;
+		int cmp = Utils::Compare(a.m_Data, b.m_Data);
+		return cmp > 0 || cmp == 0;
 	}
 
 	// Logical operators
@@ -359,10 +366,10 @@ namespace big {
 
 	BI_API big::Integer& operator%=(big::Integer& a, const big::Integer& b) {
 
-		big::Integer rem;
-		Utils::Div(a.m_Data, b.m_Data, &rem.m_Data);
+		BigInt_T aCpy = a.m_Data;
+		Utils::Div(aCpy, b.m_Data, &a.m_Data);
 
-		return rem;
+		return a;
 	}
 
 	BI_API big::Integer& operator&=(big::Integer& a, const big::Integer& b) {

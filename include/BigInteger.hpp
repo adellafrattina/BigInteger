@@ -120,10 +120,23 @@ public:
 
 namespace big {
 
+	/// <summary>
+	/// The class that represents an integer without overflow or underflow
+	/// </summary>
 	class BI_API Integer {
 
 	public:
 
+		/// <summary>
+		/// Set a new seed for the random function
+		/// </summary>
+		/// <param name="seed">The desired seed</param>
+		static void Seed(unsigned int seed);
+
+		/// <summary>
+		/// Generate a random number
+		/// </summary>
+		/// <param name="n">The desired number (must already have a size)</param>
 		static void Rand(big::Integer& n);
 
 		template <
@@ -147,13 +160,40 @@ namespace big {
 		Integer();
 		~Integer();
 
+		/// <summary>
+		/// Tries to convert a string into a big integer
+		/// </summary>
+		/// <param name="data">The converted big integer</param>
+		/// <param name="str">The string to convert that represents a number</param>
+		/// <returns>True if the conversion succeeds, false if there is at least one character that is not a digit (exception made for the minus sign at the beginning)</returns>
 		static bool FromString(Integer& data, const std::string& str);
 
+		/// <summary>
+		/// Converts a big integer into a string
+		/// </summary>
+		/// <returns>The big integer as a string</returns>
 		std::string ToString() const;
+
+		/// <returns>The raw big integer allocator</returns>
 		const void* Data();
+
+		/// <returns>The limb size of the big integer allocator (a limb is an OS word)</returns>
 		std::size_t Size() const;
+
+		/// <summary>
+		/// Resizes the big integer allocator. It will keep the original content (if the new size is greater or equal to the old one)
+		/// </summary>
+		/// <param name="size">The desired size as limbs (a limb is an OS word)</param>
 		void Resize(std::size_t size);
+
+		/// <summary>
+		/// Removes unnecessary limbs that are irrelevant for the big integer representation (a limb is an OS word)
+		/// </summary>
 		void ShrinkToFit();
+
+		/// <summary>
+		/// Deletes the big integer allocator, setting it to the default value (an OS word equals to zero)
+		/// </summary>
 		void Clear();
 
 		// Stream
