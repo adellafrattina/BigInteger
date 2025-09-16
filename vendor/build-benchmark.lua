@@ -3,8 +3,8 @@ project "benchmark"
 	staticruntime ("" .. sruntime .. "")
 	language "C++"
 	cppdialect "C++11"
-	targetdir ("" .. tdir .. "/%{prj.name}")
-	objdir ("" .. odir .. "/%{prj.name}")
+	targetdir ("" .. tdir .. "")
+	objdir ("" .. odir .. "")
 	kind "ConsoleApp"
 
 	files {

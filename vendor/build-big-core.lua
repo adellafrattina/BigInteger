@@ -3,8 +3,8 @@ project "big-core"
 	staticruntime ("" .. sruntime .. "")
 	language "C++"
 	cppdialect "C++11"
-	targetdir ("" .. tdir .. "/%{prj.name}")
-	objdir ("" .. odir .. "/%{prj.name}")
+	targetdir ("" .. tdir .. "")
+	objdir ("" .. odir .. "")
 	targetname ("BigInteger")
 
 	files {
@@ -79,13 +79,3 @@ project "big-core"
 		targetsuffix ""
 
 	filter {}
-
--- Post build commands
-filter "configurations:*DLL or *Shared"
-	postbuildcommands {
-
-		("{MKDIR} ../" .. tdir .. "/test"),
-		("{COPYDIR} %{cfg.buildtarget.relpath} ../" .. tdir .. "/test"),
-		("{MKDIR} ../" .. tdir .. "/benchmark"),
-		("{COPYDIR} %{cfg.buildtarget.relpath} ../" .. tdir .. "/benchmark")
-	}
