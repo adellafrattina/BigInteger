@@ -952,13 +952,13 @@ namespace Utils {
 	void Div(BigInt_T& first, const BigInt_T& second, BigInt_T* remainder) {
 
 		// Divide a double word by a word
-		static auto DivideDoubleWordByWord
+		static std::function<WORD(WORD, WORD, WORD, WORD*)> DivideDoubleWordByWord
 		=
 		[](WORD dividend_high, WORD dividend_low, WORD divisor, WORD* remainder) {
 
 			constexpr WORD WORD_BIT_SIZE_MINUS_ONE = sizeof(WORD) * 8 - 1;
 
-			static auto CompareDoubleWord
+			std::function<int(WORD, WORD, WORD, WORD)> CompareDoubleWord
 			=
 			[](WORD a_high, WORD a_low, WORD b_high, WORD b_low) {
 
@@ -970,7 +970,7 @@ namespace Utils {
 				return 0;
 			};
 
-			static auto SubDoubleWord
+			std::function<void(WORD, WORD, WORD, WORD, WORD&, WORD&)> SubDoubleWord
 			=
 			[](WORD a_high, WORD a_low, WORD b_high, WORD b_low, WORD& result_high, WORD& result_low) {
 
@@ -983,7 +983,7 @@ namespace Utils {
 				return (a_high < b_high) || (a_high == b_high && a_low < b_low);
 			};
 
-			static auto ShiftLeft1DoubleWord
+			std::function<void(WORD&, WORD&)> ShiftLeft1DoubleWord
 			=
 			[&WORD_BIT_SIZE_MINUS_ONE](WORD& high, WORD& low) {
 
@@ -993,13 +993,14 @@ namespace Utils {
 
 			// Actual division
 
-			// Division by Zero
+#ifdef BI_DEBUG
+
+			// Division by zero
 			if (divisor == 0)
-				throw std::runtime_error("Division by Zero");
+				throw std::runtime_error("Division by zero");
 
 			// Debug purposes
-#ifdef BI_DEBUG
-			if (dividend_high >= divisor) 
+			if (dividend_high >= divisor)
 				throw std::runtime_error("Quotient overflow - result would exceed 64 bits");
 #endif
 
@@ -1017,20 +1018,22 @@ namespace Utils {
 			WORD rem_low = 0;
 
 			// Process each bit of the dividend from most significant to least significant
-			for (int i = WORD_BIT_SIZE_MINUS_ONE; i >= 0; i--) {
+			for (std::size_t j = 0; j <= WORD_BIT_SIZE_MINUS_ONE; j++) {
+
+				const std::size_t i = WORD_BIT_SIZE_MINUS_ONE - j;
 
 				ShiftLeft1DoubleWord(rem_high, rem_low);
 
-				if (dividend_high & ((WORD)1 << i))
+				if (dividend_high & ((WORD)1 << (WORD)i))
 					rem_low |= 1;
 
 				if (CompareDoubleWord(rem_high, rem_low, 0, divisor) >= 0) {
 
-					WORD temp_high, temp_low;
+					WORD temp_high = 0, temp_low = 0;
 					SubDoubleWord(rem_high, rem_low, 0, divisor, temp_high, temp_low);
 					rem_high = temp_high;
 					rem_low = temp_low;
-					quotient |= ((WORD)1 << i);
+					quotient |= ((WORD)1 << (WORD)i);
 				}
 			}
 
@@ -1039,16 +1042,16 @@ namespace Utils {
 
 				ShiftLeft1DoubleWord(rem_high, rem_low);
 
-				if (dividend_low & ((WORD)1 << i))
+				if (dividend_low & ((WORD)1 << (WORD)i))
 					rem_low |= 1;
 
 				if (CompareDoubleWord(rem_high, rem_low, 0, divisor) >= 0) {
 
-					WORD temp_high, temp_low;
+					WORD temp_high = 0, temp_low = 0;
 					SubDoubleWord(rem_high, rem_low, 0, divisor, temp_high, temp_low);
 					rem_high = temp_high;
 					rem_low = temp_low;
-					quotient = (quotient << 1) | 1;
+					quotient = (quotient << (WORD)1) | (WORD)1;
 				}
 
 				else
@@ -1127,7 +1130,7 @@ namespace Utils {
 				std::size_t j = m - n - i;
 
 				// D3: Calculate q
-				WORD q, r;
+				WORD q = 0, r = 0;
 				WORD dividendHigh = un.Buffer[j + n];
 				WORD dividendLow = un.Buffer[j + n - 1];
 				WORD divisorHigh = vn.Buffer[n - 1];
@@ -1165,8 +1168,8 @@ namespace Utils {
 				MultiplyByWord(qhat_v, q);
 
 				BigInt_T u_part;
-				Resize(u_part, n + 1);
-				bi_memcpy(u_part.Buffer, u_part.Size * sizeof(WORD), un.Buffer + j, u_part.Size * sizeof(WORD));
+				Resize(u_part, j + n + 1);
+				bi_memcpy(u_part.Buffer, u_part.Size * sizeof(WORD), un.Buffer + j, (j + n + 1) * sizeof(WORD));
 
 				// D5: Test remainder - need to adjust
 				if (Compare(u_part, qhat_v) < 0) {
