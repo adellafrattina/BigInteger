@@ -34,7 +34,6 @@ int main() {
 		std::cout << ">";
 		int in;
 		std::cin >> in;
-		std::cout << "\n";
 		if (HasInputFailed()) {
 
 			std::cout << "\n";
@@ -44,6 +43,8 @@ int main() {
 		big::Integer n1(0);
 		big::Integer n2(0);
 		if (in >= 1 && in <= 6) {
+
+			std::cout << "\n";
 
 			bool repeat = false;
 			do {
@@ -76,6 +77,8 @@ int main() {
 			case 5: n = n1 % n2; break;
 			case 6:
 
+				std::cout << "\n";
+
 				if (n1 == n2)
 					std::cout << n1 << " == " << n2 << "\n";
 				if (n1 != n2)
@@ -94,6 +97,8 @@ int main() {
 				break;
 
 			case 7: {
+
+				std::cout << "\n";
 
 				big::Integer::Seed((unsigned)time(NULL));
 

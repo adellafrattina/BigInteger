@@ -321,8 +321,7 @@ int main() {
 
 	fout.close();
 
-	std::cout << "Press enter to terminate...";
-	std::cin.ignore();
+	std::cout << "\nPress enter to terminate...";
 	std::cin.get();
 
 	return 0;
