@@ -193,28 +193,11 @@ namespace Utils {
 		else if (a.Sign > b.Sign)
 			return LESS;
 
-		const std::size_t firstBitSize = CountSignificantBits(a);
-		const std::size_t secondBitSize = CountSignificantBits(b);
-
-		// If the number of significant bits in the first number is higher than the second one, then return 1, else return -1
-		if (firstBitSize > secondBitSize)
-			return GREATER;
-		else if (firstBitSize < secondBitSize)
-			return LESS;
-
-		std::size_t size = std::min((std::size_t)std::ceil((long double)firstBitSize / (sizeof(WORD) * 8)), (std::size_t)std::ceil((long double)secondBitSize / (sizeof(WORD) * 8))) - 1;
-
-		// Check every word in the two numbers
-		do {
-
-			if (a.Buffer[size] > b.Buffer[size])
-				return GREATER;
-			else if (a.Buffer[size] < b.Buffer[size])
-				return LESS;
-
-		} while (size--);
-
-		return EQUAL;
+		int cmp = CompareU(a, b);
+		if (cmp != 0 && a.Sign == BI_MINUS_SIGN && b.Sign == BI_MINUS_SIGN)
+			return -cmp;
+		else
+			return cmp;
 	}
 
 	int CompareU(const BigInt_T& a, const BigInt_T& b) {
